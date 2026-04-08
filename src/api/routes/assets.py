@@ -6,7 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db, get_authenticated
 from src.api.models.asset import Asset
-from src.api.schemas.asset import AssetCreate, AssetResponse
+from src.api.schemas.asset import AssetCreate, AssetResponse, AssetUpdate
+from src.api.models.scan import Scan
+from src.api.models.vulnerability import Vulnerability
+from src.api.schemas.scan import ScanResponse
+from src.api.schemas.vulnerability import VulnerabilityResponse
 from src.api.middleware.audit import write_audit_log
 from src.shared.exceptions import NotFoundError
 
@@ -77,3 +81,48 @@ async def delete_asset(
         user_id=auth.get("sub"),
     )
     await db.commit()
+
+
+@router.patch("/{asset_id}", response_model=AssetResponse)
+async def update_asset(
+    asset_id: uuid.UUID,
+    payload: AssetUpdate,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(get_authenticated),
+):
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise NotFoundError(detail=f"Asset {asset_id} not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(asset, field, value)
+    await db.commit()
+    await db.refresh(asset)
+    return asset
+
+
+@router.get("/{asset_id}/scans", response_model=list[ScanResponse])
+async def get_asset_scans(
+    asset_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(get_authenticated),
+):
+    result = await db.execute(
+        select(Scan).where(Scan.asset_id == asset_id).order_by(Scan.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@router.get("/{asset_id}/vulnerabilities", response_model=list[VulnerabilityResponse])
+async def get_asset_vulnerabilities(
+    asset_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(get_authenticated),
+):
+    result = await db.execute(
+        select(Vulnerability)
+        .where(Vulnerability.asset_id == asset_id)
+        .order_by(Vulnerability.created_at.desc())
+    )
+    return result.scalars().all()
