@@ -23,6 +23,8 @@ async def create_scan(payload: ScanCreate, db: AsyncSession = Depends(get_db), a
     await write_audit_log(session=db, event_type="scan_started", action_detail={"scanner_type": scan.scanner_type, "asset_id": str(scan.asset_id)}, asset_id=str(scan.asset_id), user_id=auth.get("sub"))
     await db.commit()
     await db.refresh(scan)
+    from src.workers.scan_tasks import run_scan
+    run_scan.delay(str(scan.id))
     return scan
 
 @router.get("/{scan_id}", response_model=ScanResponse)
