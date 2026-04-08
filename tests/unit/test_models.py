@@ -68,3 +68,26 @@ def test_cve_enrichment_model_fields():
     )
     assert c.cve_id == "CVE-2024-1234"
     assert c.is_kev is True
+
+
+def test_scan_model_new_fields():
+    s = Scan(
+        asset_id=uuid.uuid4(),
+        scanner_type="openvas",
+        status="pending",
+        scanner_task_id="abc-123",
+        config={"scan_profile": "full_and_fast"},
+    )
+    assert s.scanner_task_id == "abc-123"
+    assert s.config["scan_profile"] == "full_and_fast"
+
+
+def test_asset_model_new_fields():
+    a = Asset(
+        hostname="web-01",
+        ip_address="10.0.1.5",
+        ssh_port=2222,
+        scan_config={"preferred_scanner": "nuclei"},
+    )
+    assert a.ssh_port == 2222
+    assert a.scan_config["preferred_scanner"] == "nuclei"

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import String, Integer, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.database import Base
@@ -19,4 +19,6 @@ class Scan(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     raw_report_path: Mapped[str | None] = mapped_column(String(500))
     vuln_count: Mapped[int] = mapped_column(Integer, default=0)
+    scanner_task_id: Mapped[str | None] = mapped_column(String(200))
+    config: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

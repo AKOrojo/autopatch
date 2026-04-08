@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, Index
+from sqlalchemy import String, Integer, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID, INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,8 @@ class Asset(Base):
     environment: Mapped[str] = mapped_column(String(50), default="production")
     criticality: Mapped[str] = mapped_column(String(20), default="medium")
     tags: Mapped[dict] = mapped_column(JSONB, default=dict)
+    ssh_port: Mapped[int] = mapped_column(Integer, default=22)
+    scan_config: Mapped[dict] = mapped_column(JSONB, default=dict)
     last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

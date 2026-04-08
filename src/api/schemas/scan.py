@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class ScanCreate(BaseModel):
     asset_id: uuid.UUID
     scanner_type: str
+    config: dict | None = None
 
 
 class ScanResponse(BaseModel):
@@ -14,6 +15,8 @@ class ScanResponse(BaseModel):
     asset_id: uuid.UUID
     scanner_type: str
     status: str
+    scanner_task_id: str | None
+    config: dict | None
     started_at: datetime | None
     completed_at: datetime | None
     raw_report_path: str | None

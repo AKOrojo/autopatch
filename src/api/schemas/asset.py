@@ -19,6 +19,19 @@ class AssetCreate(BaseModel):
     tags: dict = {}
 
 
+class AssetUpdate(BaseModel):
+    hostname: str | None = None
+    ip_address: str | None = None
+    os_family: str | None = None
+    os_version: str | None = None
+    kernel_version: str | None = None
+    environment: str | None = None
+    criticality: str | None = None
+    tags: dict | None = None
+    ssh_port: int | None = None
+    scan_config: dict | None = None
+
+
 class AssetResponse(BaseModel):
     model_config = {"from_attributes": True}
     id: uuid.UUID
@@ -34,6 +47,8 @@ class AssetResponse(BaseModel):
     environment: str
     criticality: str
     tags: dict
+    ssh_port: int
+    scan_config: dict
     last_scan_at: datetime | None
     created_at: datetime
     updated_at: datetime
