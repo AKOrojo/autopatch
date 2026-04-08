@@ -43,5 +43,5 @@ def evaluator_node(state: AutopatchState) -> dict:
         "cvss_score": cvss, "epss_score": epss, "is_kev": is_kev,
         "ssvc_decision": ssvc, "priority_score": priority,
         "scope_decision": scope_decision, "scope_reason": scope_reason,
-        "status": "evaluating",
+        "status": "evaluating" if in_scope else "out_of_scope",
     }
