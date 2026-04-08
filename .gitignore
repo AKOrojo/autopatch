@@ -19,6 +19,8 @@ uv.lock
 
 # Environment
 .env
+.env.local
+.env.*.local
 
 # IDE
 .idea/
@@ -37,12 +39,24 @@ docker-compose.override.yml
 # Docs
 docs/
 
+# TypeScript / JavaScript
+*.js.map
+*.d.ts
+*.tsbuildinfo
+out/
+.turbo/
+
+# Bun
+bun.lockb
+bun.lock
+
 # Node / Dashboard
 node_modules/
 .next/
 dashboard/.next/
 dashboard/node_modules/
 dashboard/.env.local
+dashboard/out/
 
 # Test / Coverage
 .pytest_cache/
@@ -57,3 +71,10 @@ minio_data/
 *.tfstate
 *.tfstate.backup
 .terraform/
+.terraform.lock.hcl
+
+# Ruff
+.ruff_cache/
+
+# Claude
+.claude/
