@@ -1,0 +1,7 @@
+{
+  "resultsPerPage": 2, "startIndex": 0, "totalResults": 2, "format": "NVD_CVE", "version": "2.0",
+  "vulnerabilities": [
+    {"cve": {"id": "CVE-2023-44487", "descriptions": [{"lang": "en", "value": "The HTTP/2 protocol allows a denial of service (server resource consumption) because request cancellation can reset many streams quickly."}], "metrics": {"cvssMetricV31": [{"source": "nvd@nist.gov", "cvssData": {"version": "3.1", "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H", "baseScore": 7.5}}]}, "references": [{"url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487"}, {"url": "https://github.com/advisories/GHSA-qppj-fm5r-hxr3"}], "configurations": [{"nodes": [{"cpeMatch": [{"criteria": "cpe:2.3:a:ietf:http:2.0:*:*:*:*:*:*:*", "vulnerable": true}]}]}]}},
+    {"cve": {"id": "CVE-2023-45802", "descriptions": [{"lang": "en", "value": "When a HTTP/2 stream was reset (RST frame) by a client, there was a time window where the request memory resources were not reclaimed."}], "metrics": {"cvssMetricV31": [{"source": "nvd@nist.gov", "cvssData": {"version": "3.1", "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H", "baseScore": 5.9}}]}, "references": [{"url": "https://httpd.apache.org/security/vulnerabilities_24.html"}], "configurations": []}}
+  ]
+}
