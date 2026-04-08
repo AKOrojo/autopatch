@@ -1,6 +1,6 @@
 import uuid
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, Response, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_db, get_authenticated
 from src.api.models.scan import Scan
@@ -11,8 +11,17 @@ from src.shared.exceptions import NotFoundError
 router = APIRouter(prefix="/api/v1/scans", tags=["scans"])
 
 @router.get("", response_model=list[ScanResponse])
-async def list_scans(db: AsyncSession = Depends(get_db), auth: dict = Depends(get_authenticated)):
-    result = await db.execute(select(Scan).order_by(Scan.created_at.desc()))
+async def list_scans(
+    response: Response,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(get_authenticated),
+):
+    count_result = await db.execute(select(func.count()).select_from(Scan))
+    total = count_result.scalar()
+    response.headers["X-Total-Count"] = str(total)
+    result = await db.execute(select(Scan).order_by(Scan.created_at.desc()).limit(limit).offset(offset))
     return result.scalars().all()
 
 @router.post("", response_model=ScanResponse, status_code=status.HTTP_201_CREATED)

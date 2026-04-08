@@ -1,7 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, Response, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db, get_authenticated
@@ -19,10 +19,16 @@ router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
 @router.get("", response_model=list[AssetResponse])
 async def list_assets(
+    response: Response,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     auth: dict = Depends(get_authenticated),
 ):
-    result = await db.execute(select(Asset).order_by(Asset.created_at.desc()))
+    count_result = await db.execute(select(func.count()).select_from(Asset))
+    total = count_result.scalar()
+    response.headers["X-Total-Count"] = str(total)
+    result = await db.execute(select(Asset).order_by(Asset.created_at.desc()).limit(limit).offset(offset))
     return result.scalars().all()
 
 
@@ -105,11 +111,13 @@ async def update_asset(
 @router.get("/{asset_id}/scans", response_model=list[ScanResponse])
 async def get_asset_scans(
     asset_id: uuid.UUID,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     auth: dict = Depends(get_authenticated),
 ):
     result = await db.execute(
-        select(Scan).where(Scan.asset_id == asset_id).order_by(Scan.created_at.desc())
+        select(Scan).where(Scan.asset_id == asset_id).order_by(Scan.created_at.desc()).limit(limit).offset(offset)
     )
     return result.scalars().all()
 
@@ -117,6 +125,8 @@ async def get_asset_scans(
 @router.get("/{asset_id}/vulnerabilities", response_model=list[VulnerabilityResponse])
 async def get_asset_vulnerabilities(
     asset_id: uuid.UUID,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     auth: dict = Depends(get_authenticated),
 ):
@@ -124,5 +134,7 @@ async def get_asset_vulnerabilities(
         select(Vulnerability)
         .where(Vulnerability.asset_id == asset_id)
         .order_by(Vulnerability.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     return result.scalars().all()
