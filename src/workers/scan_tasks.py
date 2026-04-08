@@ -76,6 +76,9 @@ def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str)
             description=v.get("description"),
             severity=v.get("severity", "unknown"),
             cvss_score=v.get("cvss_score"),
+            epss_score=v.get("epss_score"),
+            epss_percentile=v.get("epss_percentile"),
+            is_kev=v.get("is_kev", False),
             affected_package=v.get("affected_package"),
             affected_version=v.get("affected_version"),
             fixed_version=v.get("fixed_version"),
@@ -130,6 +133,17 @@ async def _ingest_results_async(scan_id: str) -> None:
     backend = get_scanner_backend(scan["scanner_type"])
 
     results = await backend.get_results(scan["scanner_task_id"])
+
+    # Inline enrichment
+    from src.api.services.enrichment_service import enrich_vuln_dicts, fetch_enrichment_for_cves
+    all_cve_ids = []
+    for r in results:
+        all_cve_ids.extend(r.get("cve_ids", []))
+    all_cve_ids = list(set(all_cve_ids))
+    if all_cve_ids:
+        with _get_db_session() as session:
+            enrichment_data = fetch_enrichment_for_cves(session, all_cve_ids)
+        results = enrich_vuln_dicts(results, enrichment_data)
 
     _create_vulnerabilities(results, scan_id, scan["asset_id"])
     _update_scan(
