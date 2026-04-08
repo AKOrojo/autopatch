@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from src.api.config import Settings
 
 settings = Settings()
@@ -23,6 +24,22 @@ celery_app.conf.update(
         "poll-openvas-scans": {
             "task": "src.workers.scan_tasks.poll_openvas_scans",
             "schedule": 60.0,
+        },
+        "daily-epss-import": {
+            "task": "src.workers.enrichment_tasks.import_epss",
+            "schedule": crontab(hour=2, minute=0),
+        },
+        "daily-kev-import": {
+            "task": "src.workers.enrichment_tasks.import_kev",
+            "schedule": crontab(hour=2, minute=5),
+        },
+        "daily-nvd-import": {
+            "task": "src.workers.enrichment_tasks.import_cve_feed",
+            "schedule": crontab(hour=2, minute=10),
+        },
+        "daily-re-enrich": {
+            "task": "src.workers.enrichment_tasks.re_enrich_open_vulnerabilities",
+            "schedule": crontab(hour=2, minute=30),
         },
     },
 )
