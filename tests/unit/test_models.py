@@ -1,6 +1,5 @@
 # tests/unit/test_models.py
 import uuid
-from datetime import datetime, timezone
 
 from src.api.models.asset import Asset
 from src.api.models.scan import Scan

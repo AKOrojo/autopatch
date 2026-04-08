@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import select
 from src.api.config import Settings
-from src.shared.database import init_engine, async_session_factory, close_engine
+from src.shared import database
 from src.api.models.asset import Asset
 
 
@@ -22,13 +22,13 @@ SAMPLE_ASSETS = [
 
 async def seed():
     settings = Settings()
-    init_engine(settings.database_url)
+    database.init_engine(settings.database_url)
 
-    async with async_session_factory() as session:
+    async with database.async_session_factory() as session:
         result = await session.execute(select(Asset).limit(1))
         if result.scalar_one_or_none():
             print("Database already seeded. Skipping.")
-            await close_engine()
+            await database.close_engine()
             return
 
         for asset_data in SAMPLE_ASSETS:
@@ -36,7 +36,7 @@ async def seed():
         await session.commit()
         print(f"Seeded {len(SAMPLE_ASSETS)} sample assets.")
 
-    await close_engine()
+    await database.close_engine()
 
 
 if __name__ == "__main__":

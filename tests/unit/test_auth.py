@@ -1,7 +1,6 @@
 import os
 import pytest
 from datetime import timedelta
-from jose import jwt
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://x:x@localhost:5432/x")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")

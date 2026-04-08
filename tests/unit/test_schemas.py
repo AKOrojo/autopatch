@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime, timezone
 
 from src.api.schemas.asset import AssetCreate, AssetResponse
-from src.api.schemas.scan import ScanCreate, ScanResponse
-from src.api.schemas.vulnerability import VulnerabilityResponse, VulnerabilityUpdate
+from src.api.schemas.scan import ScanCreate
+from src.api.schemas.vulnerability import VulnerabilityUpdate
 from src.api.schemas.auth import LoginRequest, TokenResponse
 
 

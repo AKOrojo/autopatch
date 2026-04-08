@@ -19,10 +19,10 @@ async def list_scans(db: AsyncSession = Depends(get_db), auth: dict = Depends(ge
 async def create_scan(payload: ScanCreate, db: AsyncSession = Depends(get_db), auth: dict = Depends(get_authenticated)):
     scan = Scan(**payload.model_dump())
     db.add(scan)
-    await db.commit()
-    await db.refresh(scan)
+    await db.flush()
     await write_audit_log(session=db, event_type="scan_started", action_detail={"scanner_type": scan.scanner_type, "asset_id": str(scan.asset_id)}, asset_id=str(scan.asset_id), user_id=auth.get("sub"))
     await db.commit()
+    await db.refresh(scan)
     return scan
 
 @router.get("/{scan_id}", response_model=ScanResponse)
