@@ -51,3 +51,6 @@ class Settings(BaseSettings):
 
     # Scanner webhook base URL
     webhook_base_url: str = "http://api:8000"
+
+    # NVD API (optional)
+    nvd_api_key: str | None = None
