@@ -1,9 +1,80 @@
+"""OpenVAS backend using python-gvm over TLS."""
+import xml.etree.ElementTree as ET
+
+from src.api.config import Settings
+from src.api.services.scanners.parser import parse_openvas_results
+
+_STATUS_MAP = {
+    "Done": "completed",
+    "Running": "running",
+    "Requested": "pending",
+    "Queued": "pending",
+    "Stop Requested": "pending",
+    "Stopped": "failed",
+    "Internal Error": "failed",
+}
+
+
 class OpenVASBackend:
+    def _get_gmp(self):
+        """Create and return an authenticated GMP connection."""
+        from gvm.connections import TLSConnection
+        from gvm.protocols.gmp import Gmp
+
+        settings = Settings()
+        connection = TLSConnection(host=settings.gmp_host, port=settings.gmp_port)
+        gmp = Gmp(connection)
+        gmp.authenticate(settings.gmp_username, settings.gmp_password)
+        return gmp
+
+    def _extract_id(self, xml_response: str) -> str:
+        """Extract the id attribute from the root element of an XML response."""
+        root = ET.fromstring(xml_response)
+        return root.get("id", "")
+
+    def _extract_status(self, xml_response: str) -> str:
+        """Parse task XML and map GMP status to our internal status string."""
+        root = ET.fromstring(xml_response)
+        status_el = root.find(".//task/status")
+        if status_el is None:
+            return "unknown"
+        gmp_status = status_el.text or ""
+        return _STATUS_MAP.get(gmp_status, "unknown")
+
     async def start_scan(self, target: str, config: dict) -> str:
-        raise NotImplementedError
+        gmp = self._get_gmp()
+
+        target_resp = gmp.create_target(name=f"autopatch-{target}", hosts=[target])
+        target_id = self._extract_id(target_resp)
+
+        task_resp = gmp.create_task(
+            name=f"autopatch-scan-{target}",
+            config_id=config.get("config_id", "daba56c8-73ec-11df-a475-002264764cea"),
+            target_id=target_id,
+            scanner_id=config.get("scanner_id", "08b69003-5fc2-4037-a479-93b440211c73"),
+        )
+        task_id = self._extract_id(task_resp)
+
+        gmp.start_task(task_id)
+        return task_id
+
     async def get_scan_status(self, scanner_task_id: str) -> str:
-        raise NotImplementedError
+        gmp = self._get_gmp()
+        task_resp = gmp.get_task(scanner_task_id)
+        return self._extract_status(task_resp)
+
     async def get_results(self, scanner_task_id: str) -> list[dict]:
-        raise NotImplementedError
+        gmp = self._get_gmp()
+        xml_results = gmp.get_results(task_id=scanner_task_id)
+        return parse_openvas_results(xml_results)
+
     async def configure_alert(self, scanner_task_id: str, webhook_url: str) -> None:
-        raise NotImplementedError
+        gmp = self._get_gmp()
+        gmp.create_alert(
+            name=f"autopatch-alert-{scanner_task_id}",
+            condition=1,
+            event=0,
+            event_data={"status": "Done"},
+            method=2,
+            method_data={"URL": webhook_url},
+        )
