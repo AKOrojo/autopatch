@@ -27,7 +27,7 @@ def test_settings_default_values(monkeypatch):
 
     from src.api.config import Settings
 
-    s = Settings()
+    s = Settings(_env_file=None)
     assert s.app_name == "Autopatch"
     assert s.debug is False
     assert s.log_level == "INFO"
