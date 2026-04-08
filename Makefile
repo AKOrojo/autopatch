@@ -1,4 +1,4 @@
-.PHONY: up down up-full down-full migrate seed test test-unit lint format api dashboard logs worker beat enrich-epss enrich-kev enrich-nvd enrich-all vllm vllm-logs
+.PHONY: up down up-full down-full migrate seed test test-unit lint format api dashboard logs worker worker-agents beat enrich-epss enrich-kev enrich-nvd enrich-all vllm vllm-logs
 
 up:
 	docker compose up -d
@@ -14,6 +14,9 @@ down-full:
 
 worker:
 	uv run celery -A src.workers.celery_app worker --loglevel=info -Q scans,celery
+
+worker-agents:
+	uv run celery -A src.workers.celery_app worker --loglevel=info -Q agents
 
 beat:
 	uv run celery -A src.workers.celery_app beat --loglevel=info

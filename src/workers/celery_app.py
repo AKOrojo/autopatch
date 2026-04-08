@@ -19,6 +19,7 @@ celery_app.conf.update(
     task_track_started=True,
     task_routes={
         "src.workers.scan_tasks.*": {"queue": "scans"},
+        "src.workers.remediation_tasks.*": {"queue": "agents"},
     },
     beat_schedule={
         "poll-openvas-scans": {
