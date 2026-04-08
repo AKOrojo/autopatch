@@ -1,11 +1,17 @@
 """Unit tests for the Ansible tool."""
 
+import asyncio
 import json
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from src.agents.tools.ansible_tool import (
     PlaybookSpec,
     generate_inventory,
     generate_playbook,
+    run_playbook,
 )
 
 
@@ -82,6 +88,73 @@ class TestGenerateInventory:
     def test_custom_port(self):
         inv = generate_inventory("10.0.0.5", "autopatch", port=2222)
         assert "ansible_port=2222" in inv
+
+
+class TestRunPlaybook:
+    @pytest.mark.asyncio
+    async def test_successful_execution(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate = AsyncMock(return_value=(b"PLAY RECAP ok=3", b""))
+        mock_proc.returncode = 0
+
+        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await run_playbook('[]', '[target]\nlocalhost\n')
+
+        assert result.ok
+        assert result.exit_code == 0
+        assert "PLAY RECAP" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_check_mode_passes_flag(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate = AsyncMock(return_value=(b"CHECK MODE", b""))
+        mock_proc.returncode = 0
+
+        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+            await run_playbook('[]', '[target]\nlocalhost\n', check_mode=True)
+
+        call_args = mock_exec.call_args[0]
+        assert "--check" in call_args
+
+    @pytest.mark.asyncio
+    async def test_extra_vars_passed_as_json(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate = AsyncMock(return_value=(b"ok", b""))
+        mock_proc.returncode = 0
+
+        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+            await run_playbook('[]', '[target]\nlocalhost\n', extra_vars={"pkg": "nginx"})
+
+        call_args = mock_exec.call_args[0]
+        assert "--extra-vars" in call_args
+        ev_idx = list(call_args).index("--extra-vars")
+        assert '"pkg"' in call_args[ev_idx + 1]
+
+    @pytest.mark.asyncio
+    async def test_timeout_kills_process(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_proc.kill = MagicMock()
+
+        with (
+            patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc),
+            patch("src.agents.tools.ansible_tool.asyncio.wait_for", side_effect=asyncio.TimeoutError()),
+        ):
+            result = await run_playbook('[]', '[target]\nlocalhost\n', timeout=1)
+
+        assert result.exit_code == -1
+        assert "timed out" in result.stderr.lower()
+
+    @pytest.mark.asyncio
+    async def test_temp_files_cleaned_up(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate = AsyncMock(return_value=(b"ok", b""))
+        mock_proc.returncode = 0
+
+        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await run_playbook('[]', '[target]\nlocalhost\n')
+
+        assert result.ok
 
 
 class TestInventoryFormatting:
