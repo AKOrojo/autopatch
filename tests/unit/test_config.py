@@ -48,3 +48,17 @@ def test_scanner_settings(monkeypatch):
     assert s.gmp_port == 9390
     assert s.gmp_username == "admin"
     assert s.celery_broker_url == "redis://localhost:6379/1"
+
+
+def test_llm_settings(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@localhost:5432/test")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
+    monkeypatch.setenv("API_KEYS", "key1")
+    monkeypatch.setenv("LLM_BASE_URL", "http://vllm:8001/v1")
+    monkeypatch.setenv("LLM_MODEL", "Qwen/Qwen3-30B-A3B")
+
+    from src.api.config import Settings
+    s = Settings(_env_file=None)
+    assert s.llm_base_url == "http://vllm:8001/v1"
+    assert s.llm_model == "Qwen/Qwen3-30B-A3B"

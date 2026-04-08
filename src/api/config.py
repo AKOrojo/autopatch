@@ -54,3 +54,7 @@ class Settings(BaseSettings):
 
     # NVD API (optional)
     nvd_api_key: str | None = None
+
+    # LLM (OpenAI-compatible endpoint)
+    llm_base_url: str = "http://vllm:8001/v1"
+    llm_model: str = "Qwen/Qwen3-30B-A3B"
