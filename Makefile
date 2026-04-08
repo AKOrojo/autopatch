@@ -1,10 +1,22 @@
-.PHONY: up down migrate seed test lint format api dashboard logs
+.PHONY: up down up-full down-full migrate seed test test-unit lint format api dashboard logs worker beat
 
 up:
 	docker compose up -d
 
 down:
 	docker compose down
+
+up-full:
+	docker compose -f docker-compose.yml -f docker-compose.greenbone.yml up -d
+
+down-full:
+	docker compose -f docker-compose.yml -f docker-compose.greenbone.yml down
+
+worker:
+	uv run celery -A src.workers.celery_app worker --loglevel=info -Q scans,celery
+
+beat:
+	uv run celery -A src.workers.celery_app beat --loglevel=info
 
 migrate:
 	uv run alembic upgrade head

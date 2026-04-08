@@ -56,5 +56,44 @@ services:
     volumes:
       - ./dashboard/src:/app/src
 
+  celery-worker:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://autopatch:autopatch_dev@postgres:5432/autopatch
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: uv run celery -A src.workers.celery_app worker --loglevel=info -Q scans,celery
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://autopatch:autopatch_dev@postgres:5432/autopatch
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+    command: uv run celery -A src.workers.celery_app beat --loglevel=info
+
 volumes:
   autopatch_pgdata:
