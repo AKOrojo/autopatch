@@ -1,0 +1,6 @@
+---
+- name: reload affected service
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    state: reloaded
+  when: service_name is defined and service_name | length > 0
