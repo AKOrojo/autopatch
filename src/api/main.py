@@ -5,7 +5,7 @@ from src.api.config import Settings
 from src.shared.database import init_engine, close_engine
 from src.shared.redis_client import init_redis, close_redis
 from src.shared.logging import setup_logging
-from src.api.routes import auth, assets, scans, vulnerabilities, remediations, reports, webhooks
+from src.api.routes import auth, assets, scans, vulnerabilities, remediations, reports, webhooks, enrichment
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,6 +28,7 @@ app.include_router(vulnerabilities.router)
 app.include_router(remediations.router)
 app.include_router(reports.router)
 app.include_router(webhooks.router)
+app.include_router(enrichment.router)
 
 @app.get("/health")
 async def health():
