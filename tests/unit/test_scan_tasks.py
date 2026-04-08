@@ -1,8 +1,7 @@
 import os
 import uuid
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import patch, AsyncMock
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://x:x@localhost:5432/x")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
@@ -52,7 +51,7 @@ async def test_ingest_results_creates_vulnerabilities():
              "id": scan_id, "scanner_type": "openvas",
              "scanner_task_id": "task-123", "asset_id": asset_id,
          }), \
-         patch("src.workers.scan_tasks._update_scan") as mock_update, \
+         patch("src.workers.scan_tasks._update_scan"), \
          patch("src.workers.scan_tasks._create_vulnerabilities") as mock_create:
         await _ingest_results_async(scan_id)
         mock_backend.get_results.assert_called_once_with("task-123")
