@@ -38,3 +38,16 @@ class Settings(BaseSettings):
     app_name: str = "Autopatch"
     debug: bool = False
     log_level: str = "INFO"
+
+    # Greenbone GMP
+    gmp_host: str = "gvmd"
+    gmp_port: int = 9390
+    gmp_username: str = "admin"
+    gmp_password: str = "admin"
+
+    # Celery
+    celery_broker_url: str = "redis://localhost:6379/1"
+    celery_result_backend: str = "redis://localhost:6379/2"
+
+    # Scanner webhook base URL
+    webhook_base_url: str = "http://api:8000"

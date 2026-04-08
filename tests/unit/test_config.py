@@ -29,3 +29,22 @@ def test_settings_default_values(monkeypatch):
     assert s.app_name == "Autopatch"
     assert s.debug is False
     assert s.log_level == "INFO"
+
+
+def test_scanner_settings(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@localhost:5432/test")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
+    monkeypatch.setenv("API_KEYS", "key1")
+    monkeypatch.setenv("GMP_HOST", "gvmd")
+    monkeypatch.setenv("GMP_PORT", "9390")
+    monkeypatch.setenv("GMP_USERNAME", "admin")
+    monkeypatch.setenv("GMP_PASSWORD", "admin")
+    monkeypatch.setenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
+
+    from src.api.config import Settings
+    s = Settings(_env_file=None)
+    assert s.gmp_host == "gvmd"
+    assert s.gmp_port == 9390
+    assert s.gmp_username == "admin"
+    assert s.celery_broker_url == "redis://localhost:6379/1"
