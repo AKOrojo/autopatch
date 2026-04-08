@@ -28,7 +28,10 @@ seed:
 	uv run python scripts/seed_db.py
 
 test:
-	uv run pytest tests/ -v
+	uv run pytest tests/ -v -m "not live_llm"
+
+test-live:
+	uv run pytest tests/ -v -m live_llm
 
 test-unit:
 	uv run pytest tests/unit/ -v

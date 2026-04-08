@@ -7,7 +7,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("API_KEYS", "key1")
 
-from src.agents.llm_client import get_llm_client, get_model_name
+from src.agents.llm import get_llm_client, get_model_name
 
 @pytest.mark.live_llm
 def test_vllm_health():
@@ -27,7 +27,8 @@ def test_vllm_completion():
     assert len(response.choices[0].message.content) > 10
 
 @pytest.mark.live_llm
-def test_full_graph_live():
+@pytest.mark.asyncio
+async def test_full_graph_live():
     from src.agents.state import make_initial_state
     from src.agents.graph import build_graph
     state = make_initial_state("v1", "a1", "CVE-2021-44228", {
@@ -36,7 +37,7 @@ def test_full_graph_live():
         "asset_criticality": "critical",
     })
     graph = build_graph()
-    result = graph.invoke(state)
+    result = await graph.ainvoke(state)
     assert result["scope_decision"] == "in_scope"
     assert result["ssvc_decision"] == "act"
     assert result["status"] == "complete"
