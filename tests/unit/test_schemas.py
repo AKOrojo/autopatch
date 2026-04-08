@@ -33,6 +33,7 @@ def test_asset_response_schema():
         id=uuid.uuid4(), hostname="web-01", ip_address="10.0.1.5",
         os_family="ubuntu", os_version="22.04", kernel_version=None,
         environment="production", criticality="high", tags={},
+        ssh_port=22, scan_config={},
         last_scan_at=None, created_at=now, updated_at=now,
     )
     assert a.hostname == "web-01"
