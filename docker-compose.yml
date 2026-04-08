@@ -95,5 +95,27 @@ services:
       - ./src:/app/src
     command: uv run celery -A src.workers.celery_app beat --loglevel=info
 
+  vllm:
+    image: vllm/vllm-openai:v0.8.5
+    ports:
+      - "8001:8000"
+    volumes:
+      - vllm_model_cache:/root/.cache/huggingface
+    environment:
+      VLLM_API_KEY: "not-needed"
+    command: >
+      --model Qwen/Qwen3-30B-A3B
+      --tensor-parallel-size 2
+      --max-model-len 8192
+      --trust-remote-code
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+
 volumes:
   autopatch_pgdata:
+  vllm_model_cache:
