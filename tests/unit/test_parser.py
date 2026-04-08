@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from src.api.services.scanners.parser import (
     parse_openvas_results,
