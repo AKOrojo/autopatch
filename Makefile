@@ -1,4 +1,4 @@
-.PHONY: up down up-full down-full migrate seed test test-unit lint format api dashboard logs worker beat
+.PHONY: up down up-full down-full migrate seed test test-unit lint format api dashboard logs worker beat enrich-epss enrich-kev enrich-nvd enrich-all
 
 up:
 	docker compose up -d
@@ -44,3 +44,15 @@ dashboard:
 
 logs:
 	docker compose logs -f
+
+enrich-epss:
+	uv run python scripts/import_epss.py
+
+enrich-kev:
+	uv run python scripts/import_kev.py
+
+enrich-nvd:
+	uv run python scripts/import_cve_feed.py
+
+enrich-all:
+	uv run python scripts/import_epss.py && uv run python scripts/import_kev.py && uv run python scripts/import_cve_feed.py
