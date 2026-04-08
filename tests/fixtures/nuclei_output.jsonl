@@ -1,0 +1,3 @@
+{"template-id":"apache-detect","info":{"name":"Apache Detection","severity":"info"},"host":"10.0.1.10","matched-at":"http://10.0.1.10:80","type":"http","ip":"10.0.1.10","port":"80"}
+{"template-id":"cve-2023-45802","info":{"name":"Apache HTTP Server < 2.4.58 - DoS","severity":"high","classification":{"cve-id":["CVE-2023-45802"],"cwe-id":["CWE-400"],"cvss-score":7.5}},"host":"10.0.1.10","matched-at":"http://10.0.1.10:80","type":"http","ip":"10.0.1.10","port":"80"}
+{"template-id":"ssh-weak-algo","info":{"name":"SSH Weak Algorithms","severity":"medium","classification":{"cwe-id":["CWE-327"],"cvss-score":5.3}},"host":"10.0.1.10","matched-at":"10.0.1.10:22","type":"network","ip":"10.0.1.10","port":"22"}

@@ -1,0 +1,32 @@
+<get_results_response status="200">
+  <result id="r1">
+    <name>Apache HTTP Server &lt; 2.4.58 Multiple Vulnerabilities</name>
+    <host><ip>10.0.1.10</ip></host>
+    <port>80/tcp</port>
+    <nvt oid="1.3.6.1.4.1.25623.1.0.170001">
+      <name>Apache HTTP Server &lt; 2.4.58 Multiple Vulnerabilities</name>
+      <cvss_base><value>7.5</value></cvss_base>
+      <severities><severity type="cvss_base_v3"><score>7.5</score></severity></severities>
+      <refs>
+        <ref type="cve" id="CVE-2023-45802"/>
+        <ref type="cve" id="CVE-2023-43622"/>
+        <ref type="cwe" id="CWE-400"/>
+      </refs>
+    </nvt>
+    <description>The remote Apache server is vulnerable.</description>
+    <threat>High</threat>
+  </result>
+  <result id="r2">
+    <name>SSH Weak Key Exchange Algorithms</name>
+    <host><ip>10.0.1.10</ip></host>
+    <port>22/tcp</port>
+    <nvt oid="1.3.6.1.4.1.25623.1.0.150001">
+      <name>SSH Weak Key Exchange Algorithms</name>
+      <cvss_base><value>5.3</value></cvss_base>
+      <severities><severity type="cvss_base_v3"><score>5.3</score></severity></severities>
+      <refs><ref type="cwe" id="CWE-327"/></refs>
+    </nvt>
+    <description>The SSH server supports weak key exchange algorithms.</description>
+    <threat>Medium</threat>
+  </result>
+</get_results_response>
