@@ -58,3 +58,22 @@ class Settings(BaseSettings):
     # LLM (OpenAI-compatible endpoint)
     llm_base_url: str = "http://vllm:8001/v1"
     llm_model: str = "Qwen/Qwen3-30B-A3B"
+
+    # HashiCorp Vault
+    vault_addr: str = "http://vault:8200"
+    vault_role_id: str = ""
+    vault_secret_id: str = ""
+
+    # Executor sandbox
+    executor_ssh_user: str = "autopatch"
+    executor_cert_ttl: str = "5m"
+
+    # MinIO
+    minio_endpoint: str = "minio:9000"
+    minio_access_key: str = "autopatch"
+    minio_secret_key: str = "autopatch_dev"
+    minio_bucket: str = "autopatch"
+    minio_secure: bool = False
+
+    # Notifications
+    notification_webhook_url: str = ""
