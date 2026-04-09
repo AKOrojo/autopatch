@@ -1,22 +1,31 @@
 """Tests requiring a running vLLM instance. Run with: pytest -m live_llm"""
 import os
 import pytest
+from dotenv import dotenv_values
+
+# Load .env and force-set LLM vars (override unit-test defaults)
+_env = dotenv_values(".env")
+for key in ("LLM_BASE_URL", "LLM_MODEL"):
+    if key in _env:
+        os.environ[key] = _env[key]
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://autopatch:autopatch_dev@localhost:5432/autopatch")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("API_KEYS", "key1")
 
-from src.agents.llm import get_llm_client, get_model_name
+from src.agents.llm import get_llm_client, get_model_name, reset_client
 
 @pytest.mark.live_llm
 def test_vllm_health():
+    reset_client()
     client = get_llm_client()
     models = client.models.list()
     assert len(models.data) > 0
 
 @pytest.mark.live_llm
 def test_vllm_completion():
+    reset_client()
     client = get_llm_client()
     response = client.chat.completions.create(
         model=get_model_name(),
