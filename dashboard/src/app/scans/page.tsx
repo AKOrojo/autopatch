@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getScans, type Scan } from "@/lib/api";
 import { DataTable, type Column } from "@/components/data-table";
 import { Pagination } from "@/components/pagination";
 import { StatusBadge } from "@/components/badge";
+import { InitiateScanDialog } from "@/components/initiate-scan-dialog";
 
 const columns: Column<Scan>[] = [
   { key: "scanner_type", header: "Scanner" },
@@ -21,15 +22,22 @@ export default function ScansPage() {
   const [loading, setLoading] = useState(true);
   const limit = 50;
 
-  useEffect(() => {
+  const fetchScans = useCallback(() => {
     setLoading(true);
     getScans(limit, offset).then((res) => { setData(res.data); setTotal(res.total); }).catch(console.error).finally(() => setLoading(false));
   }, [offset]);
 
+  useEffect(() => { fetchScans(); }, [fetchScans]);
+
   return (
     <div>
-      <h1 className="text-2xl font-bold">Scans</h1>
-      <p className="mt-2 text-muted-foreground mb-6">Scan history and results.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Scans</h1>
+          <p className="mt-1 text-muted-foreground">Scan history and results.</p>
+        </div>
+        <InitiateScanDialog onScanCreated={fetchScans} />
+      </div>
       <DataTable columns={columns} data={data} loading={loading} />
       <Pagination total={total} limit={limit} offset={offset} onPageChange={setOffset} />
     </div>

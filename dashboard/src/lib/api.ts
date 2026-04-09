@@ -30,9 +30,38 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      if (typeof window !== "undefined" && !path.includes("/auth/login")) {
+        localStorage.removeItem("autopatch_token");
+        window.location.href = "/login";
+      }
+      throw new Error("Unauthorized. Please log in.");
+    }
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
   return res;
+}
+
+// Auth
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user_id: string;
+  role: string;
+}
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const url = `${API_BASE}/api/v1/auth/login`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error("Invalid email or password.");
+    throw new Error(`Login failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
 }
 
 async function fetchPaginated<T>(path: string, params: Record<string, string> = {}): Promise<PaginatedResponse<T>> {
@@ -64,6 +93,21 @@ export function getAssets(limit = 50, offset = 0) {
   return fetchPaginated<Asset>("/api/v1/assets", { limit: String(limit), offset: String(offset) });
 }
 
+export interface AssetCreate {
+  hostname: string;
+  ip_address: string;
+  os_family?: string;
+  os_version?: string;
+  environment?: string;
+  criticality?: string;
+  tags?: Record<string, unknown>;
+}
+
+export async function createAsset(data: AssetCreate): Promise<Asset> {
+  const res = await apiFetch("/api/v1/assets", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
+}
+
 export function getAsset(id: string) {
   return apiFetch(`/api/v1/assets/${id}`).then(r => r.json()) as Promise<Asset>;
 }
@@ -83,6 +127,17 @@ export interface Scan {
 
 export function getScans(limit = 50, offset = 0) {
   return fetchPaginated<Scan>("/api/v1/scans", { limit: String(limit), offset: String(offset) });
+}
+
+export interface ScanCreate {
+  asset_id: string;
+  scanner_type: string;
+  config?: Record<string, unknown>;
+}
+
+export async function createScan(data: ScanCreate): Promise<Scan> {
+  const res = await apiFetch("/api/v1/scans", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
 }
 
 export function getAssetScans(assetId: string, limit = 50, offset = 0) {
@@ -121,6 +176,20 @@ export function getVulnerability(id: string) {
 
 export function getAssetVulnerabilities(assetId: string, limit = 50, offset = 0) {
   return fetchPaginated<Vulnerability>(`/api/v1/assets/${assetId}/vulnerabilities`, { limit: String(limit), offset: String(offset) });
+}
+
+// Remediations
+export async function analyzeVulnerability(vulnerabilityId: string) {
+  const res = await apiFetch("/api/v1/remediations/analyze", {
+    method: "POST",
+    body: JSON.stringify({ vulnerability_id: vulnerabilityId }),
+  });
+  return res.json() as Promise<{ task_id: string; vulnerability_id: string; status: string }>;
+}
+
+export async function getAnalysisStatus(taskId: string) {
+  const res = await apiFetch(`/api/v1/remediations/analyze/${taskId}`);
+  return res.json() as Promise<{ task_id: string; status: string; result?: unknown }>;
 }
 
 // Dashboard

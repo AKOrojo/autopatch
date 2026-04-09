@@ -1,5 +1,6 @@
 import { getVulnerability } from "@/lib/api";
 import { SeverityBadge, StatusBadge } from "@/components/badge";
+import { LaunchRemediationButton } from "@/components/launch-remediation-button";
 
 export default async function VulnerabilityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -8,11 +9,16 @@ export default async function VulnerabilityDetailPage({ params }: { params: Prom
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">{vuln.title}</h1>
-      <div className="flex gap-2 mt-2">
-        <SeverityBadge severity={vuln.severity} />
-        <StatusBadge status={vuln.status} />
-        {vuln.is_kev && <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">KEV</span>}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{vuln.title}</h1>
+          <div className="flex gap-2 mt-2">
+            <SeverityBadge severity={vuln.severity} />
+            <StatusBadge status={vuln.status} />
+            {vuln.is_kev && <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">KEV</span>}
+          </div>
+        </div>
+        <LaunchRemediationButton vulnerabilityId={id} status={vuln.status} />
       </div>
       <div className="grid grid-cols-2 gap-4 mt-6 border rounded-lg p-6">
         <div><span className="text-sm text-muted-foreground">CVE:</span> {vuln.cve_id || "—"}</div>
