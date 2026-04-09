@@ -77,3 +77,13 @@ class Settings(BaseSettings):
 
     # Notifications
     notification_webhook_url: str = ""
+
+    # SMTP
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "autopatch@localhost"
+
+    # Global settings
+    global_mode: str = "auto"
