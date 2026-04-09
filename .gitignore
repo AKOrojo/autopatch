@@ -78,3 +78,6 @@ minio_data/
 
 # Claude
 .claude/
+
+# Superpowers
+.superpowers/
