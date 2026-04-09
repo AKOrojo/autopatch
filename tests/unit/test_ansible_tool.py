@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -165,7 +164,7 @@ class TestInventoryFormatting:
             cert_file="/tmp/cert.pub",
             private_key="/tmp/id_ed25519",
         )
-        lines = [l for l in inv.strip().splitlines() if l.strip()]
+        lines = [line for line in inv.strip().splitlines() if line.strip()]
         # Should have exactly 2 lines: [target] header and host line
         assert len(lines) == 2
         assert lines[0] == "[target]"
