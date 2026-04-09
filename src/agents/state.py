@@ -33,9 +33,27 @@ class AutopatchState(TypedDict):
     remediation_plan: dict | None
     strategy: str | None            # vendor_patch / config_workaround / compensating_control
 
+    # Execution (from executor agent)
+    execution_result: dict | None   # pre_commands, playbook, post_commands results
+
     # Control
-    status: str                     # pending / evaluating / researching / planning / complete / out_of_scope / error
+    status: str                     # pending / evaluating / researching / planning / executing / executed / complete / out_of_scope / error
     error: str | None
+
+    # Verification (from verification agent)
+    verification_results: dict | None
+    pre_services: list[str]
+
+    # Retry / circuit breaker
+    strategy_history: list[dict]            # [{strategy, attempt, error, commands, duration}]
+    current_strategy_index: int             # 0=vendor_patch, 1=config_workaround, 2=compensating_control
+    attempt_within_strategy: int            # 1 or 2 (max 2 per strategy)
+    total_attempts: int                     # across all strategies
+    remediation_started_at: str | None      # ISO timestamp for global timeout
+
+    # Dead letter
+    dead_letter_reason: str | None
+    artifact_bundle_path: str | None
 
 
 def make_initial_state(
@@ -65,6 +83,16 @@ def make_initial_state(
         doc_sources=[],
         remediation_plan=None,
         strategy=None,
+        execution_result=None,
         status="pending",
         error=None,
+        verification_results=None,
+        pre_services=[],
+        strategy_history=[],
+        current_strategy_index=0,
+        attempt_within_strategy=1,
+        total_attempts=0,
+        remediation_started_at=None,
+        dead_letter_reason=None,
+        artifact_bundle_path=None,
     )
