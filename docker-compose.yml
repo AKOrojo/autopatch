@@ -138,6 +138,7 @@ services:
   tools:
     build:
       context: ./deploy/docker/tools
+    network_mode: host  # L2 access for ARP/nmap — works on Linux, limited on Docker Desktop
     volumes:
       - tools_data:/data
     entrypoint: [""]
