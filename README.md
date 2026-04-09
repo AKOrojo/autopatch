@@ -145,8 +145,11 @@ graph TD
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2+
 - [Git](https://git-scm.com/)
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [nvm](https://github.com/nvm-sh/nvm) and Node.js 20+
+- [Bun](https://bun.sh/) (dashboard package manager)
 - A separate machine with a CUDA-capable GPU for the LLM server ([vLLM](https://docs.vllm.ai/))
 
 ### 1. Clone and configure
@@ -155,6 +158,21 @@ graph TD
 git clone https://github.com/bkoro/autopatch.git
 cd autopatch
 cp .env.example .env
+```
+
+**Set up the Python environment:**
+
+```bash
+uv venv
+uv sync
+```
+
+**Set up the dashboard:**
+
+```bash
+cd dashboard
+bun install
+cd ..
 ```
 
 Edit `.env` and set at minimum:
