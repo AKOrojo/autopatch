@@ -2,7 +2,13 @@
 """E2E test fixtures — Proxmox VM cloning, scanning, and teardown."""
 
 import os
+from pathlib import Path
+
 import pytest
+from dotenv import load_dotenv
+
+# Load .env from project root so all settings (including AUTOPATCH_E2E_OPENVAS) are available
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://autopatch:autopatch_dev@localhost:5432/autopatch")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
