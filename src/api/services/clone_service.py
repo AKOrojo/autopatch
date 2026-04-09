@@ -124,8 +124,6 @@ class CloneService:
             timeout: Max seconds to wait for discovery
             poll_interval: Seconds between attempts
         """
-        import os
-        import platform
         import re
         import time
 
@@ -138,33 +136,13 @@ class CloneService:
         mac_hyphen = mac_lower.replace(":", "-")
         mac_colon = mac_lower.replace("-", ":")
 
-        # Determine subnet from Proxmox host IP
-        proxmox_url = os.environ.get("PROXMOX_API_URL", "")
-        proxmox_ip = re.search(r"(\d+\.\d+\.\d+)\.\d+", proxmox_url)
-        subnet_prefix = proxmox_ip.group(1) if proxmox_ip else "10.100.201"
-
-        logger.info("Discovering IP for MAC %s on %s.0/24...", mac, subnet_prefix)
+        logger.info("Discovering IP for MAC %s via ARP...", mac)
 
         elapsed = 0
         while elapsed < timeout:
-            # Ping broadcast to populate ARP cache
-            try:
-                if platform.system() == "Windows":
-                    # Windows: ping broadcast doesn't always work, ping a range
-                    for octet in range(1, 255, 10):
-                        subprocess.run(
-                            ["ping", "-n", "1", "-w", "200", f"{subnet_prefix}.{octet}"],
-                            capture_output=True, timeout=3,
-                        )
-                else:
-                    subprocess.run(
-                        ["ping", "-c", "1", "-W", "1", "-b", f"{subnet_prefix}.255"],
-                        capture_output=True, timeout=3,
-                    )
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-
-            # Read ARP table and match MAC
+            # Check ARP table for the MAC address.
+            # The VM's DHCP request + gratuitous ARP broadcast should populate
+            # the host's ARP cache automatically — no ping sweep needed.
             try:
                 arp = subprocess.run(
                     ["arp", "-a"], capture_output=True, text=True, timeout=10,
@@ -172,7 +150,6 @@ class CloneService:
                 for line in arp.stdout.splitlines():
                     line_lower = line.lower()
                     if mac_hyphen in line_lower or mac_colon in line_lower:
-                        # Extract IP — Windows: "  10.100.201.27  bc-24-11-..."
                         ip_match = re.search(r"(\d+\.\d+\.\d+\.\d+)", line)
                         if ip_match:
                             ip = ip_match.group(1)
