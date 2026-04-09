@@ -19,6 +19,7 @@ class Asset(Base):
     kernel_version: Mapped[str | None] = mapped_column(String(100))
     environment: Mapped[str] = mapped_column(String(50), default="production")
     criticality: Mapped[str] = mapped_column(String(20), default="medium")
+    tier: Mapped[str] = mapped_column(String(20), default="dev")
     tags: Mapped[dict] = mapped_column(JSONB, default=dict)
     ssh_port: Mapped[int] = mapped_column(Integer, default=22)
     scan_config: Mapped[dict] = mapped_column(JSONB, default=dict)

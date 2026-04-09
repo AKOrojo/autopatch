@@ -8,7 +8,10 @@ from src.api.config import Settings
 from src.shared.database import Base
 
 # Import all models so Base.metadata is populated
-from src.api.models import Asset, Scan, Vulnerability, AuditLog, CVEEnrichment  # noqa: F401
+from src.api.models import (  # noqa: F401
+    Asset, Scan, Vulnerability, AuditLog, CVEEnrichment,
+    User, ApprovalRequest, ApprovalPolicy, RemediationEvent, NotificationChannel,
+)
 
 config = context.config
 if config.config_file_name is not None:
