@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-TRIVY_DOCKER_IMAGE = "ghcr.io/aquasecurity/trivy:latest"
+TRIVY_DOCKER_IMAGE = "ghcr.io/aquasecurity/trivy:0.62.1"
 
 
 @dataclass

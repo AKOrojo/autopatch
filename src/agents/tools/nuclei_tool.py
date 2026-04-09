@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-NUCLEI_DOCKER_IMAGE = "projectdiscovery/nuclei:latest"
+NUCLEI_DOCKER_IMAGE = "projectdiscovery/nuclei:v3.3.7"
 
 
 @dataclass
