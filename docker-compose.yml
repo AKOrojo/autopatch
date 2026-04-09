@@ -138,7 +138,6 @@ services:
   tools:
     build:
       context: ./deploy/docker/tools
-    network_mode: host
     volumes:
       - tools_data:/data
     entrypoint: [""]
