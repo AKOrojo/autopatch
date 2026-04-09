@@ -1,0 +1,26 @@
+---
+- name: Update package cache (Debian)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 300
+  when: ansible_pkg_mgr == "apt"
+
+- name: Update package cache (RHEL)
+  ansible.builtin.dnf:
+    update_cache: true
+  when: ansible_pkg_mgr == "dnf"
+
+- name: Install/upgrade package (Debian)
+  ansible.builtin.apt:
+    name: "{{ package_name }}{% if package_version | default('') %}={{ package_version }}{% endif %}"
+    state: "{{ 'present' if package_version | default('') else 'latest' }}"
+    only_upgrade: "{{ upgrade_only | default(false) }}"
+  when: ansible_pkg_mgr == "apt"
+  notify: restart patched service
+
+- name: Install/upgrade package (RHEL)
+  ansible.builtin.dnf:
+    name: "{{ package_name }}{% if package_version | default('') %}-{{ package_version }}{% endif %}"
+    state: "{{ 'present' if package_version | default('') else 'latest' }}"
+  when: ansible_pkg_mgr == "dnf"
+  notify: restart patched service

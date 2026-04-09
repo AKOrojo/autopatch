@@ -12,7 +12,7 @@ async_session_factory = None
 
 def init_engine(database_url: str):
     global engine, async_session_factory
-    engine = create_async_engine(database_url, echo=False, pool_size=10, max_overflow=20)
+    engine = create_async_engine(database_url, echo=False, pool_size=10, max_overflow=20, pool_pre_ping=True)
     async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

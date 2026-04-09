@@ -14,6 +14,7 @@ class AuditLog(Base):
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     remediation_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True))
     vulnerability_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vulnerabilities.id"))
+    scan_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True))
     asset_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), ForeignKey("assets.id"))
     agent_id: Mapped[str | None] = mapped_column(String(100))
     model_id: Mapped[str | None] = mapped_column(String(100))

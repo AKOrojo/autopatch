@@ -1,0 +1,30 @@
+---
+- name: Backup target config file
+  ansible.builtin.copy:
+    src: "{{ config_file }}"
+    dest: "{{ config_file }}.autopatch-bak"
+    remote_src: true
+    mode: preserve
+  when: config_file is defined
+
+- name: Apply config line changes
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: "{{ item.state | default('present') }}"
+    backup: true
+  loop: "{{ config_changes | default([]) }}"
+  notify: reload affected service
+
+- name: Validate config syntax (nginx)
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  when: config_file is defined and 'nginx' in config_file
+
+- name: Validate config syntax (sshd)
+  ansible.builtin.command:
+    cmd: sshd -t
+  changed_when: false
+  when: config_file is defined and 'sshd' in config_file

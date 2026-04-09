@@ -1,0 +1,7 @@
+---
+- name: restart patched service
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: service_name is defined and service_name | length > 0

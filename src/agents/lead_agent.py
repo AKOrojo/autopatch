@@ -78,6 +78,26 @@ def _build_context(state: AutopatchState) -> str:
         for url in advisories:
             sections.append(f"- {url}")
 
+    # Retry context (for re-planning after failure)
+    history = state.get("strategy_history", [])
+    if history:
+        sections.append("")
+        sections.append("## Previous Attempts (FAILED — do NOT repeat)")
+        for i, attempt in enumerate(history, 1):
+            sections.append(f"### Attempt {i}: {attempt.get('strategy', 'unknown')}")
+            sections.append(f"- Error: {attempt.get('error', 'unknown')}")
+            cmds = attempt.get("commands", [])
+            if cmds:
+                sections.append(f"- Commands tried: {len(cmds)}")
+                for cmd_entry in cmds[:3]:
+                    if isinstance(cmd_entry, dict):
+                        sections.append(f"  - `{cmd_entry.get('command', '')}` → exit {cmd_entry.get('exit_code', '?')}")
+        sections.append("")
+        forced_strategy = state.get("strategy")
+        if forced_strategy:
+            sections.append(f"**You MUST use strategy: {forced_strategy}**")
+            sections.append("Plan a DIFFERENT approach than previous attempts.")
+
     return "\n".join(sections)
 
 

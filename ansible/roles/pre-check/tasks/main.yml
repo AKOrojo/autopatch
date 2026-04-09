@@ -1,0 +1,34 @@
+---
+- name: Gather system facts
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - distribution
+      - pkg_mgr
+      - service_mgr
+
+- name: Verify package manager is available
+  ansible.builtin.command:
+    cmd: "{{ 'apt-get' if ansible_pkg_mgr == 'apt' else 'dnf' }} --version"
+  changed_when: false
+
+- name: Record installed packages (Debian)
+  ansible.builtin.command:
+    cmd: dpkg --get-selections
+  register: pre_packages
+  changed_when: false
+  when: ansible_pkg_mgr == "apt"
+
+- name: Record installed packages (RHEL)
+  ansible.builtin.command:
+    cmd: rpm -qa
+  register: pre_packages
+  changed_when: false
+  when: ansible_pkg_mgr in ["dnf", "yum"]
+
+- name: Record running services
+  ansible.builtin.command:
+    cmd: systemctl list-units --type=service --state=running --no-pager --plain
+  register: pre_services
+  changed_when: false

@@ -1,0 +1,28 @@
+---
+- name: Apply UFW firewall rules
+  community.general.ufw:
+    rule: "{{ item.rule | default('allow') }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto | default('tcp') }}"
+    from_ip: "{{ item.from_ip | default('any') }}"
+    comment: "autopatch: {{ vulnerability_id | default('unknown') }}"
+  loop: "{{ firewall_rules | default([]) }}"
+  when: firewall_rules is defined
+
+- name: Disable vulnerable service
+  ansible.builtin.systemd:
+    name: "{{ disable_service }}"
+    state: stopped
+    enabled: false
+  when: disable_service is defined and disable_service | length > 0
+
+- name: Apply iptables rules (when UFW not available)
+  ansible.builtin.iptables:
+    chain: "{{ item.chain | default('INPUT') }}"
+    protocol: "{{ item.proto | default('tcp') }}"
+    destination_port: "{{ item.port }}"
+    source: "{{ item.source | default(omit) }}"
+    jump: "{{ item.jump | default('DROP') }}"
+    comment: "autopatch: {{ vulnerability_id | default('unknown') }}"
+  loop: "{{ iptables_rules | default([]) }}"
+  when: iptables_rules is defined
