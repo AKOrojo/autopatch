@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 210" role="img" aria-label="Autopatch — Agent Graph Logo">
+  <title>Autopatch</title>
+  <desc>Six connected agent nodes representing the Autopatch multi-agent vulnerability remediation pipeline</desc>
+
+  <!-- Connections (solid = primary flow) -->
+  <line x1="70" y1="58" x2="130" y2="30" stroke="#4a4a5a" stroke-width="2"/>
+  <line x1="130" y1="30" x2="190" y2="58" stroke="#4a4a5a" stroke-width="2"/>
+  <line x1="70" y1="58" x2="70" y2="118" stroke="#4a4a5a" stroke-width="2"/>
+  <line x1="190" y1="58" x2="190" y2="118" stroke="#4a4a5a" stroke-width="2"/>
+  <line x1="70" y1="118" x2="130" y2="148" stroke="#4a4a5a" stroke-width="2"/>
+  <line x1="190" y1="118" x2="130" y2="148" stroke="#4a4a5a" stroke-width="2"/>
+
+  <!-- Cross-links (dashed = coordination) -->
+  <line x1="130" y1="30" x2="70" y2="118" stroke="#4a4a5a" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="130" y1="30" x2="190" y2="118" stroke="#4a4a5a" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Node: EVAL (top center) — orange -->
+  <rect x="112" y="12" width="36" height="36" rx="6" fill="#f0883e"/>
+  <text x="130" y="34" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">EVAL</text>
+
+  <!-- Node: RES (left upper) — salmon -->
+  <rect x="52" y="42" width="36" height="32" rx="6" fill="#f9826c"/>
+  <text x="70" y="62" text-anchor="middle" fill="#0d1117" font-size="8" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">RES</text>
+
+  <!-- Node: DOCS (right upper) — amber -->
+  <rect x="172" y="42" width="36" height="32" rx="6" fill="#ffa657"/>
+  <text x="190" y="62" text-anchor="middle" fill="#0d1117" font-size="8" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">DOCS</text>
+
+  <!-- Node: LEAD (left lower) — red -->
+  <rect x="52" y="102" width="36" height="32" rx="6" fill="#da3633"/>
+  <text x="70" y="122" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">LEAD</text>
+
+  <!-- Node: EXEC (right lower) — purple -->
+  <rect x="172" y="102" width="36" height="32" rx="6" fill="#8957e5"/>
+  <text x="190" y="122" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">EXEC</text>
+
+  <!-- Node: VERIFY (bottom center) — green -->
+  <rect x="112" y="130" width="36" height="36" rx="6" fill="#238636"/>
+  <text x="130" y="152" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">VERIFY</text>
+
+  <!-- Title -->
+  <text x="130" y="192" text-anchor="middle" fill="#f0883e" font-size="20" font-weight="700" font-family="system-ui, -apple-system, sans-serif" letter-spacing="3">AUTOPATCH</text>
+</svg>
