@@ -135,6 +135,16 @@ services:
     command: ["sh", "-c", "apk add --no-cache curl jq > /dev/null 2>&1; sleep infinity"]
     restart: unless-stopped
 
+  tools:
+    build:
+      context: ./deploy/docker/tools
+    network_mode: host
+    volumes:
+      - tools_data:/data
+    entrypoint: [""]
+    command: ["sh", "-c", "sleep infinity"]
+    restart: unless-stopped
+
   vault:
     image: hashicorp/vault:1.17
     cap_add:
@@ -162,3 +172,4 @@ volumes:
   vllm_model_cache:
   terraform_data:
   vault_data:
+  tools_data:

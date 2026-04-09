@@ -113,14 +113,15 @@ class CloneService:
                 raise RuntimeError(f"Terraform init failed: {result.stderr}")
             self._initialized = True
 
-    def discover_ip(self, mac: str, timeout: int = 180, poll_interval: int = 10) -> str:
-        """Discover a VM's IP by matching its MAC in the Windows ARP table.
+    def discover_ip(self, mac: str, subnet: str = "10.100.201.0/24", timeout: int = 180, poll_interval: int = 15) -> str:
+        """Discover a VM's IP by MAC address using the tools container.
 
-        Runs on the Windows host (not inside Docker). Pings the subnet
-        broadcast to populate the ARP cache, then matches the MAC.
+        Uses nmap ping scan + arp table inside the tools container (which runs
+        with network_mode: host, so it sees the same L2 network as the host).
 
         Args:
             mac: MAC address from Terraform output (e.g. "BC:24:11:F0:FB:F6")
+            subnet: Subnet to scan (CIDR notation)
             timeout: Max seconds to wait for discovery
             poll_interval: Seconds between attempts
         """
@@ -131,36 +132,38 @@ class CloneService:
             logger.warning("No MAC address provided for IP discovery")
             return ""
 
-        # Normalize MAC to lowercase with both colon and hyphen formats
-        mac_lower = mac.lower()
-        mac_hyphen = mac_lower.replace(":", "-")
-        mac_colon = mac_lower.replace("-", ":")
+        mac_colon = mac.lower().replace("-", ":")
+        tools_cmd = [*self.tf.compose.split(), "exec", "-T", "tools"]
 
-        logger.info("Discovering IP for MAC %s via ARP...", mac)
+        logger.info("Discovering IP for MAC %s on %s via tools container...", mac, subnet)
 
         elapsed = 0
         while elapsed < timeout:
-            # Check ARP table for the MAC address.
-            # The VM's DHCP request + gratuitous ARP broadcast should populate
-            # the host's ARP cache automatically — no ping sweep needed.
+            # nmap ping scan to populate ARP cache, then grep arp table
             try:
+                # Quick nmap scan populates ARP
+                subprocess.run(
+                    [*tools_cmd, "nmap", "-sn", subnet],
+                    capture_output=True, text=True, timeout=30,
+                )
+                # Read ARP table and match MAC
                 arp = subprocess.run(
-                    ["arp", "-a"], capture_output=True, text=True, timeout=10,
+                    [*tools_cmd, "arp", "-an"],
+                    capture_output=True, text=True, timeout=10,
                 )
                 for line in arp.stdout.splitlines():
-                    line_lower = line.lower()
-                    if mac_hyphen in line_lower or mac_colon in line_lower:
-                        ip_match = re.search(r"(\d+\.\d+\.\d+\.\d+)", line)
+                    if mac_colon in line.lower():
+                        ip_match = re.search(r"\((\d+\.\d+\.\d+\.\d+)\)", line)
                         if ip_match:
                             ip = ip_match.group(1)
-                            logger.info("Discovered IP %s for MAC %s via ARP", ip, mac)
+                            logger.info("Discovered IP %s for MAC %s", ip, mac)
                             return ip
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
+            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                logger.warning("Tools container discovery attempt failed: %s", e)
 
             time.sleep(poll_interval)
             elapsed += poll_interval
-            logger.info("Waiting for MAC %s in ARP table... (%ds/%ds)", mac, elapsed, timeout)
+            logger.info("Waiting for MAC %s... (%ds/%ds)", mac, elapsed, timeout)
 
         logger.warning("Could not discover IP for MAC %s after %ds", mac, timeout)
         return ""

@@ -1,7 +1,6 @@
 """Nuclei scan runner tool — template-based vulnerability verification.
 
-Attempts to run nuclei locally first, falls back to Docker if the binary
-is not found.
+Runs nuclei locally if available, otherwise via Docker container.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-NUCLEI_DOCKER_IMAGE = "projectdiscovery/nuclei:v3.3.7"
+NUCLEI_DOCKER_IMAGE = "projectdiscovery/nuclei:v3.7.1"
 
 
 @dataclass
@@ -29,26 +28,6 @@ class NucleiResult:
         return len(self.findings) > 0
 
 
-def _build_nuclei_cmd(
-    target: str,
-    template_ids: list[str] | None,
-    severity: str | None,
-    use_docker: bool,
-) -> list[str]:
-    """Build the nuclei command, either local or via Docker."""
-    if use_docker:
-        cmd = ["docker", "run", "--rm", "--network=host", NUCLEI_DOCKER_IMAGE]
-    else:
-        cmd = ["nuclei"]
-
-    cmd.extend(["-target", target, "-jsonl", "-silent"])
-    if template_ids:
-        cmd.extend(["-template-id", ",".join(template_ids)])
-    if severity:
-        cmd.extend(["-severity", severity])
-    return cmd
-
-
 async def run_nuclei_scan(
     target: str,
     *,
@@ -60,9 +39,16 @@ async def run_nuclei_scan(
     use_docker = shutil.which("nuclei") is None
 
     if use_docker:
-        logger.info("nuclei not found locally, using Docker image %s", NUCLEI_DOCKER_IMAGE)
+        cmd = ["docker", "run", "--rm", "--network=host", NUCLEI_DOCKER_IMAGE]
+        logger.info("nuclei not found locally, using %s", NUCLEI_DOCKER_IMAGE)
+    else:
+        cmd = ["nuclei"]
 
-    cmd = _build_nuclei_cmd(target, template_ids, severity, use_docker)
+    cmd.extend(["-target", target, "-jsonl", "-silent"])
+    if template_ids:
+        cmd.extend(["-template-id", ",".join(template_ids)])
+    if severity:
+        cmd.extend(["-severity", severity])
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -93,7 +79,6 @@ async def run_nuclei_scan(
         return NucleiResult(exit_code=proc.returncode or 0, findings=findings, stdout=stdout, stderr=stderr)
 
     except FileNotFoundError:
-        binary = "docker" if use_docker else "nuclei"
-        return NucleiResult(exit_code=-1, stderr=f"{binary} binary not found")
+        return NucleiResult(exit_code=-1, stderr="docker/nuclei binary not found")
     except Exception as e:
         return NucleiResult(exit_code=-1, stderr=str(e))
