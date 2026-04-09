@@ -1,3 +1,8 @@
+import type {
+  ApprovalRequest, ApprovalPolicy, DashboardOverview, AuditLogEntry,
+  UserRecord, NotificationChannel, AppSettings,
+} from "./types";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface PaginatedResponse<T> {
@@ -106,4 +111,86 @@ export function getVulnerability(id: string) {
 
 export function getAssetVulnerabilities(assetId: string, limit = 50, offset = 0) {
   return fetchPaginated<Vulnerability>(`/api/v1/assets/${assetId}/vulnerabilities`, { limit: String(limit), offset: String(offset) });
+}
+
+// Dashboard
+export async function getDashboardOverview(range = "30d"): Promise<DashboardOverview> {
+  const res = await apiFetch(`/api/v1/dashboard/overview?range=${range}`);
+  return res.json();
+}
+
+// Approvals
+export function getApprovals(params: Record<string, string> = {}) {
+  return fetchPaginated<ApprovalRequest>("/api/v1/approvals", params);
+}
+
+export async function approveRequest(id: string, reason?: string) {
+  return apiFetch(`/api/v1/approvals/${id}/approve`, { method: "POST", body: JSON.stringify({ reason }) });
+}
+
+export async function rejectRequest(id: string, reason: string) {
+  return apiFetch(`/api/v1/approvals/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+}
+
+// Policies
+export async function getApprovalPolicies(): Promise<ApprovalPolicy[]> {
+  const res = await apiFetch("/api/v1/approval-policies");
+  return res.json();
+}
+
+export async function updateApprovalPolicy(tier: string, data: Partial<ApprovalPolicy>) {
+  return apiFetch(`/api/v1/approval-policies/${tier}`, { method: "PUT", body: JSON.stringify(data) });
+}
+
+// Audit logs
+export async function getAuditLogs(params: Record<string, string> = {}) {
+  const query = new URLSearchParams(params).toString();
+  const res = await apiFetch(`/api/v1/audit-logs${query ? `?${query}` : ""}`);
+  return res.json() as Promise<{ data: AuditLogEntry[]; total: number; page: number; per_page: number }>;
+}
+
+// Users
+export async function getUsers(): Promise<UserRecord[]> {
+  const res = await apiFetch("/api/v1/users");
+  return res.json();
+}
+
+export async function createUser(data: { email: string; name: string; password: string; role: string }) {
+  return apiFetch("/api/v1/users", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateUser(id: string, data: { name?: string; role?: string; is_active?: boolean }) {
+  return apiFetch(`/api/v1/users/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+
+export async function deleteUser(id: string) {
+  return apiFetch(`/api/v1/users/${id}`, { method: "DELETE" });
+}
+
+// Notification channels
+export async function getNotificationChannels(): Promise<NotificationChannel[]> {
+  const res = await apiFetch("/api/v1/notification-channels");
+  return res.json();
+}
+
+export async function createNotificationChannel(data: { type: string; config: Record<string, unknown>; events: string[]; enabled: boolean }) {
+  return apiFetch("/api/v1/notification-channels", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function deleteNotificationChannel(id: string) {
+  return apiFetch(`/api/v1/notification-channels/${id}`, { method: "DELETE" });
+}
+
+export async function testNotificationChannel(id: string) {
+  return apiFetch(`/api/v1/notification-channels/${id}/test`, { method: "POST" });
+}
+
+// Settings
+export async function getSettings(): Promise<AppSettings> {
+  const res = await apiFetch("/api/v1/settings");
+  return res.json();
+}
+
+export async function updateSettings(data: { global_mode?: string }) {
+  return apiFetch("/api/v1/settings", { method: "PUT", body: JSON.stringify(data) });
 }
