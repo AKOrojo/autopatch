@@ -25,8 +25,8 @@ export default function ApprovalsPage() {
         <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => (<div key={i} className="border rounded-lg p-4 animate-pulse"><div className="h-4 bg-muted rounded w-48 mb-2" /><div className="h-3 bg-muted rounded w-32" /></div>))}</div>
       ) : (
         <div className="space-y-4">
-          {data?.data.length === 0 ? <p className="text-muted-foreground">No {statusFilter} approvals.</p> :
-            data?.data.map((a) => (<ApprovalCard key={a.id} approval={a} onApprove={(id, reason) => approveMutation.mutate({ id, reason })} onReject={(id, reason) => rejectMutation.mutate({ id, reason })} />))}
+          {!data?.data?.length ? <p className="text-muted-foreground">No {statusFilter} approvals.</p> :
+            data.data.map((a) => (<ApprovalCard key={a.id} approval={a} onApprove={(id, reason) => approveMutation.mutate({ id, reason })} onReject={(id, reason) => rejectMutation.mutate({ id, reason })} />))}
         </div>
       )}
     </div>

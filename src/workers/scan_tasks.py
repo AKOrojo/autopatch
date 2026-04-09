@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import create_engine, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from src.workers.celery_app import celery_app
@@ -62,10 +63,10 @@ def _update_scan(scan_id: str, **kwargs) -> None:
 
 
 def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str) -> None:
-    """Persist Vulnerability records for the given scan."""
+    """Persist Vulnerability records with CVE dedup (upsert on asset_id+cve_id)."""
     from src.api.models.vulnerability import Vulnerability
 
-    rows = []
+    rows: list[dict] = []
     for v in vuln_dicts:
         cve_ids = v.get("cve_ids") or []
         base = dict(
@@ -85,15 +86,37 @@ def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str)
         )
         if cve_ids:
             for cve in cve_ids:
-                rows.append(Vulnerability(**base, cve_id=cve))
+                rows.append({**base, "cve_id": cve})
         else:
-            rows.append(Vulnerability(**base))
+            rows.append({**base, "cve_id": None})
 
     if not rows:
         return
 
+    # Fields to update when a duplicate (asset_id, cve_id) is found
+    update_fields = [
+        "scan_id", "cwe_id", "title", "description", "severity",
+        "cvss_score", "epss_score", "epss_percentile", "is_kev",
+        "affected_package", "affected_version", "fixed_version",
+    ]
+
     with _get_db_session() as session:
-        session.add_all(rows)
+        # Rows WITH a cve_id get upserted (deduped per asset)
+        cve_rows = [r for r in rows if r.get("cve_id")]
+        nocve_rows = [r for r in rows if not r.get("cve_id")]
+
+        if cve_rows:
+            stmt = pg_insert(Vulnerability).values(cve_rows)
+            stmt = stmt.on_conflict_do_update(
+                constraint="uq_vuln_asset_cve",
+                set_={f: stmt.excluded[f] for f in update_fields},
+            )
+            session.execute(stmt)
+
+        # Rows without CVE IDs are always inserted (can't dedup without an ID)
+        for r in nocve_rows:
+            session.add(Vulnerability(**r))
+
         session.commit()
 
 
