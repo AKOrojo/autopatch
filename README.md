@@ -148,7 +148,7 @@ graph TD
 - [Git](https://git-scm.com/)
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
-- [nvm](https://github.com/nvm-sh/nvm) and Node.js 20+
+- [nvm](https://github.com/nvm-sh/nvm) and Node.js 22+ (`nvm install 22 && nvm use 22`)
 - [Bun](https://bun.sh/) (dashboard package manager)
 - A separate machine with a CUDA-capable GPU for the LLM server ([vLLM](https://docs.vllm.ai/))
 
@@ -188,6 +188,7 @@ Edit `.env` and set at minimum:
 ```bash
 make up          # API, Dashboard, PostgreSQL, Redis
 make migrate     # Run database migrations
+make seed        # Create default users and sample assets
 ```
 
 To include the OpenVAS vulnerability scanner:
@@ -195,6 +196,44 @@ To include the OpenVAS vulnerability scanner:
 ```bash
 make up-full
 ```
+
+### Troubleshooting
+
+<details>
+<summary><strong>Turbopack runtime error on <code>bun run dev</code></strong></summary>
+
+If you see `An unexpected Turbopack error occurred` when starting the dashboard:
+
+1. **Ensure dependencies are installed:** Run `bun install` inside the `dashboard/` directory.
+2. **Check Node.js version:** Next.js 16 requires Node.js 22+. Run `node --version` to verify. Use `nvm install 22 && nvm use 22` if needed.
+3. **Check the terminal output:** The real error is printed in the terminal where `bun run dev` is running, not in the browser. Look for missing modules or syntax errors.
+4. **Clear the cache:** Run `rm -rf dashboard/.next && bun run dev` to rebuild from scratch.
+
+</details>
+
+<details>
+<summary><strong>401 Unauthorized on the dashboard</strong></summary>
+
+The API requires authentication. After running `make seed`, log in with:
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@autopatch.local` | `changeme123` | admin |
+| `operator@autopatch.local` | `changeme123` | operator |
+| `viewer@autopatch.local` | `changeme123` | viewer |
+
+</details>
+
+<details>
+<summary><strong><code>relation "users" does not exist</code> on <code>make seed</code></strong></summary>
+
+Run `make migrate` before `make seed`. The migration creates the database tables that the seed script populates.
+
+```bash
+make migrate && make seed
+```
+
+</details>
 
 ### 3. Open the dashboard
 
