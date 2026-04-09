@@ -55,7 +55,7 @@ graph TD
         CACHE[(Redis)]
         VAULT[HashiCorp Vault]
         MINIO[MinIO]
-        LLM[vLLM — Standalone Server]
+        LLM[vLLM - Standalone Server]
         SCAN[OpenVAS / Trivy / Nuclei]
     end
 
@@ -85,7 +85,7 @@ A minimal single-network deployment suitable for development and experimentation
 
 ```mermaid
 graph LR
-    subgraph Lab Network — 10.100.201.0/24
+    subgraph Lab Network - 10.100.201.0/24
         AP[Autopatch<br/>API + Workers + Dashboard]
         DB[(PostgreSQL + Redis)]
         VAULT[Vault]
@@ -108,7 +108,7 @@ A segmented deployment with network-level isolation between zones. The LLM serve
 
 ```mermaid
 graph TD
-    subgraph DMZ — Frontend Network
+    subgraph DMZ - Frontend Network
         DASH[Dashboard<br/>HTTPS :443]
         API[API Gateway<br/>HTTPS :8443]
     end
@@ -121,7 +121,7 @@ graph TD
         MINIO[MinIO]
     end
 
-    subgraph Target Network — Isolated
+    subgraph Target Network - Isolated
         VM1[Target VM 1]
         VM2[Target VM 2]
         VMN[Target VM N]
