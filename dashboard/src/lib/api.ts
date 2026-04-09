@@ -144,6 +144,61 @@ export function getAssetScans(assetId: string, limit = 50, offset = 0) {
   return fetchPaginated<Scan>(`/api/v1/assets/${assetId}/scans`, { limit: String(limit), offset: String(offset) });
 }
 
+// Scan Reports
+export interface ScanReport {
+  id: string;
+  asset_id: string;
+  status: string;
+  scanner_types: string;
+  total_vulns: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface ScanReportDetail extends ScanReport {
+  scans: {
+    id: string;
+    scanner_type: string;
+    status: string;
+    vuln_count: number;
+    started_at: string | null;
+    completed_at: string | null;
+  }[];
+  vulnerabilities: {
+    id: string;
+    cve_id: string | null;
+    cwe_id: string | null;
+    title: string;
+    severity: string;
+    cvss_score: number | null;
+    epss_score: number | null;
+    is_kev: boolean;
+    status: string;
+    affected_package: string | null;
+    fixed_version: string | null;
+    in_scope: boolean;
+  }[];
+}
+
+export interface ScanReportCreate {
+  asset_id: string;
+  scanner_types: string[];
+}
+
+export function getScanReports(limit = 50, offset = 0) {
+  return fetchPaginated<ScanReport>("/api/v1/scan-reports", { limit: String(limit), offset: String(offset) });
+}
+
+export async function getScanReport(id: string): Promise<ScanReportDetail> {
+  const res = await apiFetch(`/api/v1/scan-reports/${id}`);
+  return res.json();
+}
+
+export async function createScanReport(data: ScanReportCreate): Promise<ScanReport> {
+  const res = await apiFetch("/api/v1/scan-reports", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
+}
+
 export interface Vulnerability {
   id: string;
   scan_id: string | null;

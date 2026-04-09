@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createScan, getAssets, type Asset } from "@/lib/api";
+import { createScanReport, getAssets, type Asset } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Scan, X, Check } from "lucide-react";
 
@@ -84,10 +84,8 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
 
     setSubmitting(true);
     try {
-      const promises = Array.from(selectedAssetIds).flatMap((asset_id) =>
-        Array.from(selectedScanners).map((scanner_type) =>
-          createScan({ asset_id, scanner_type })
-        )
+      const promises = Array.from(selectedAssetIds).map((asset_id) =>
+        createScanReport({ asset_id, scanner_types: Array.from(selectedScanners) })
       );
       await Promise.all(promises);
       setSelectedAssetIds(new Set());
@@ -236,10 +234,10 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting || totalScans === 0}>
+              <Button type="submit" disabled={submitting || selectedAssetIds.size === 0 || selectedScanners.size === 0}>
                 {submitting
                   ? "Starting..."
-                  : `Start ${totalScans} Scan${totalScans !== 1 ? "s" : ""}`}
+                  : `Start ${selectedAssetIds.size} Report${selectedAssetIds.size !== 1 ? "s" : ""}`}
               </Button>
             </div>
           </form>
