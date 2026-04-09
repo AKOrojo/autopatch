@@ -114,6 +114,12 @@ variable "cloud_init" {
   default     = true
 }
 
+variable "discovery_broadcast" {
+  description = "Broadcast address for ARP-based IP discovery (used when cloud_init=false)"
+  type        = string
+  default     = "10.100.201.255"
+}
+
 variable "start_on_create" {
   description = "Start VM immediately after cloning"
   type        = bool

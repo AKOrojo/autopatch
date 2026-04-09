@@ -113,105 +113,25 @@ class CloneService:
                 raise RuntimeError(f"Terraform init failed: {result.stderr}")
             self._initialized = True
 
-    def _get_vm_mac(self, vm_id: int) -> str:
-        """Get the MAC address of a VM's first network interface from Proxmox."""
-        import os
-        api_url = os.environ.get("PROXMOX_API_URL", "")
-        api_token = os.environ.get("PROXMOX_API_TOKEN", "")
-        node = os.environ.get("PROXMOX_NODE", "pve")
-
-        cmd = [
-            "curl", "-sk",
-            "-H", f"Authorization: PVEAPIToken={api_token}",
-            f"{api_url}/api2/json/nodes/{node}/qemu/{vm_id}/config",
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        if result.returncode != 0:
-            return ""
+    def discover_ip(self, vm_id: int) -> str:
+        """Read the IP discovered by Terraform's local-exec provisioner."""
+        # The local-exec provisioner in the clone-vm module writes the IP
+        # to /tmp/vm_{vm_id}_ip.txt inside the Terraform container.
+        # We read it via `docker compose exec`.
         try:
-            config = json.loads(result.stdout).get("data", {})
-            net0 = config.get("net0", "")
-            # Format: "virtio=BC:24:11:87:A3:85,bridge=vmbr0,..."
-            for part in net0.split(","):
-                if "=" in part and part.split("=")[0] in ("virtio", "e1000", "rtl8139"):
-                    return part.split("=")[1].lower()
-        except (json.JSONDecodeError, IndexError):
+            result = subprocess.run(
+                [*self.tf.compose.split(), "exec", "-T", DOCKER_SERVICE,
+                 "cat", f"/tmp/vm_{vm_id}_ip.txt"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if result.returncode == 0:
+                ip = result.stdout.strip()
+                if ip:
+                    logger.info("VM %d IP from Terraform discovery: %s", vm_id, ip)
+                    return ip
+        except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
-        return ""
-
-    def discover_ip(self, vm_id: int, timeout: int = 120, poll_interval: int = 10) -> str:
-        """Discover a VM's IP by matching its MAC in the Proxmox ARP table.
-
-        Polls the Proxmox host's ARP table until the VM's MAC address appears.
-        This works for VMs without cloud-init or qemu-guest-agent (like Metasploitable 2).
-        """
-        import os
-        import time
-
-        mac = self._get_vm_mac(vm_id)
-        if not mac:
-            logger.warning("Could not get MAC address for VM %d", vm_id)
-            return ""
-
-        api_url = os.environ.get("PROXMOX_API_URL", "")
-        api_token = os.environ.get("PROXMOX_API_TOKEN", "")
-        node = os.environ.get("PROXMOX_NODE", "pve")
-
-        logger.info("Waiting for VM %d (MAC %s) to get an IP...", vm_id, mac)
-        elapsed = 0
-        while elapsed < timeout:
-            # Query Proxmox node's network interfaces for ARP entries
-            cmd = [
-                "curl", "-sk",
-                "-H", f"Authorization: PVEAPIToken={api_token}",
-                f"{api_url}/api2/json/nodes/{node}/network",
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-
-            # Also try reading ARP table directly via Proxmox API task
-            arp_cmd = [
-                "curl", "-sk",
-                "-H", f"Authorization: PVEAPIToken={api_token}",
-                f"{api_url}/api2/json/nodes/{node}/qemu/{vm_id}/agent/network-get-interfaces",
-            ]
-            arp_result = subprocess.run(arp_cmd, capture_output=True, text=True, timeout=15)
-            if arp_result.returncode == 0 and arp_result.stdout.strip():
-                try:
-                    ifaces = json.loads(arp_result.stdout).get("data", {}).get("result", [])
-                    for iface in ifaces:
-                        for addr in iface.get("ip-addresses", []):
-                            ip = addr.get("ip-address", "")
-                            if ip and addr.get("ip-address-type") == "ipv4" and not ip.startswith("127."):
-                                logger.info("VM %d IP discovered via guest agent: %s", vm_id, ip)
-                                return ip
-                except (json.JSONDecodeError, KeyError, AttributeError):
-                    pass
-
-            # Fallback: ping sweep and check ARP on the host running this code
-            try:
-                arp_scan = subprocess.run(
-                    ["arp", "-a"], capture_output=True, text=True, timeout=10,
-                )
-                for line in arp_scan.stdout.splitlines():
-                    if mac.replace(":", "-") in line.lower() or mac in line.lower():
-                        # Parse IP from ARP output (format varies by OS)
-                        parts = line.strip().split()
-                        for part in parts:
-                            cleaned = part.strip("()")
-                            if cleaned.count(".") == 3 and all(
-                                seg.isdigit() and 0 <= int(seg) <= 255
-                                for seg in cleaned.split(".")
-                            ):
-                                logger.info("VM %d IP discovered via ARP: %s", vm_id, cleaned)
-                                return cleaned
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-
-            time.sleep(poll_interval)
-            elapsed += poll_interval
-            logger.info("Waiting for VM %d IP... (%ds/%ds)", vm_id, elapsed, timeout)
-
-        logger.warning("Could not discover IP for VM %d after %ds", vm_id, timeout)
+        logger.warning("Could not read discovered IP for VM %d", vm_id)
         return ""
 
     def create_clone(self, request: CloneRequest) -> CloneResult:

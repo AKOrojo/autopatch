@@ -70,4 +70,34 @@ resource "proxmox_virtual_environment_vm" "clone" {
       network_device,
     ]
   }
+
+  # Discover DHCP-assigned IP for VMs without cloud-init/guest-agent.
+  # Waits for boot, then scans the local ARP table by MAC address.
+  provisioner "local-exec" {
+    command = <<-EOT
+      MAC=$(echo "${self.network_device[0].mac_address}" | tr '[:upper:]' '[:lower:]')
+      echo "Waiting for VM ${self.vm_id} (MAC $MAC) to get an IP..."
+      for i in $(seq 1 24); do
+        sleep 5
+        # Ping broadcast to populate ARP cache
+        ping -c 1 -W 1 -b ${var.discovery_broadcast} >/dev/null 2>&1 || true
+        # Check ARP table for the MAC
+        IP=$(arp -an 2>/dev/null | grep -i "$MAC" | grep -oP '\\(\\K[0-9.]+(?=\\))' | head -1)
+        if [ -n "$IP" ]; then
+          echo "$IP" > /tmp/vm_${self.vm_id}_ip.txt
+          echo "Discovered IP: $IP"
+          exit 0
+        fi
+        echo "  attempt $i/24 — not found yet"
+      done
+      echo "" > /tmp/vm_${self.vm_id}_ip.txt
+      echo "WARNING: Could not discover IP after 120s"
+    EOT
+  }
+}
+
+# Read the discovered IP from the file written by local-exec
+data "local_file" "vm_ip" {
+  filename   = "/tmp/vm_${proxmox_virtual_environment_vm.clone.vm_id}_ip.txt"
+  depends_on = [proxmox_virtual_environment_vm.clone]
 }
