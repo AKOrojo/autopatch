@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
     await close_engine()
     await close_redis()
 
-app = FastAPI(title="Autopatch", description="Autonomous vulnerability remediation platform", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Autopatch", description="Autonomous vulnerability remediation platform", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
