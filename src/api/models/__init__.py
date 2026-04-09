@@ -1,5 +1,6 @@
 from src.api.models.asset import Asset
 from src.api.models.scan import Scan
+from src.api.models.scan_report import ScanReport
 from src.api.models.vulnerability import Vulnerability
 from src.api.models.audit_log import AuditLog
 from src.api.models.cve_enrichment import CVEEnrichment
@@ -10,6 +11,6 @@ from src.api.models.remediation_event import RemediationEvent
 from src.api.models.notification_channel import NotificationChannel
 
 __all__ = [
-    "Asset", "Scan", "Vulnerability", "AuditLog", "CVEEnrichment",
+    "Asset", "Scan", "ScanReport", "Vulnerability", "AuditLog", "CVEEnrichment",
     "User", "ApprovalRequest", "ApprovalPolicy", "RemediationEvent", "NotificationChannel",
 ]
