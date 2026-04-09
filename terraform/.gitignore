@@ -1,7 +1,9 @@
 # Terraform
 *.tfstate
 *.tfstate.backup
+*.tfstate.*.backup
 *.tfplan
+tfplan
 .terraform/
 .terraform.lock.hcl
 *.auto.tfvars.json
