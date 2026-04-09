@@ -183,7 +183,7 @@ class CloneService:
                             if ip and addr.get("ip-address-type") == "ipv4" and not ip.startswith("127."):
                                 logger.info("VM %d IP discovered via guest agent: %s", vm_id, ip)
                                 return ip
-                except (json.JSONDecodeError, KeyError):
+                except (json.JSONDecodeError, KeyError, AttributeError):
                     pass
 
             # Fallback: ping sweep and check ARP on the host running this code
