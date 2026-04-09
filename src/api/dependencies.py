@@ -1,8 +1,10 @@
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, HTTPException, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.config import Settings
 from src.api.middleware.auth import verify_token, verify_api_key
+from src.api.models.user import User
 from src.shared.database import get_session
 from src.shared.exceptions import UnauthorizedError
 
@@ -48,3 +50,43 @@ def get_authenticated(request: Request, settings: Settings = Depends(get_setting
         payload["auth_type"] = "jwt"
         return payload
     raise UnauthorizedError(detail="No valid authentication provided")
+
+
+def _check_role(user: User, allowed_roles: list[str]) -> None:
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User account is deactivated")
+    if user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail=f"Role '{user.role}' not authorized")
+
+
+async def get_current_db_user(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_db),
+) -> User:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise UnauthorizedError(detail="Missing or invalid Authorization header")
+    token = auth_header.split(" ", 1)[1]
+    payload = verify_token(token, settings)
+    user_id = payload.get("sub")
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise UnauthorizedError(detail="User not found")
+    if not user.is_active:
+        raise UnauthorizedError(detail="User account is deactivated")
+    return user
+
+
+def require_roles(*roles: str):
+    allowed = list(roles)
+    async def dependency(user: User = Depends(get_current_db_user)) -> User:
+        _check_role(user, allowed)
+        return user
+    return dependency
+
+
+require_admin = require_roles("admin")
+require_operator = require_roles("admin", "operator")
+require_any_role = require_roles("admin", "operator", "viewer")
