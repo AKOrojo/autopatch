@@ -167,13 +167,15 @@ uv venv
 uv sync
 ```
 
-**Set up the dashboard:**
+**Set up the dashboard (from the project root):**
 
 ```bash
 cd dashboard
-bun install
+bun install          # installs frontend dependencies from package.json
 cd ..
 ```
+
+> **Note:** Use `bun install`, not `bun init`. The dashboard already has a `package.json` — you just need to install its dependencies.
 
 Edit `.env` and set at minimum:
 
