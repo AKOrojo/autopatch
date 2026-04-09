@@ -1,13 +1,20 @@
-"""Trivy vulnerability scanner tool — filesystem and image scanning."""
+"""Trivy vulnerability scanner tool — filesystem and image scanning.
+
+Attempts to run trivy locally first, falls back to Docker if the binary
+is not found.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
+import shutil
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
+
+TRIVY_DOCKER_IMAGE = "aquasec/trivy:latest"
 
 
 @dataclass
@@ -29,7 +36,18 @@ async def run_trivy_scan(
     severity: str = "CRITICAL,HIGH",
     timeout: int = 300,
 ) -> TrivyResult:
-    cmd = ["trivy", scan_type, "--format", "json", "--severity", severity, "--quiet", target]
+    """Run a Trivy scan. Falls back to Docker if trivy binary not found."""
+    use_docker = shutil.which("trivy") is None
+
+    if use_docker:
+        logger.info("trivy not found locally, using Docker image %s", TRIVY_DOCKER_IMAGE)
+        cmd = [
+            "docker", "run", "--rm", "--network=host",
+            TRIVY_DOCKER_IMAGE,
+            scan_type, "--format", "json", "--severity", severity, "--quiet", target,
+        ]
+    else:
+        cmd = ["trivy", scan_type, "--format", "json", "--severity", severity, "--quiet", target]
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -57,6 +75,7 @@ async def run_trivy_scan(
         return TrivyResult(exit_code=proc.returncode or 0, vulnerabilities=vulns, stdout=stdout, stderr=stderr)
 
     except FileNotFoundError:
-        return TrivyResult(exit_code=-1, stderr="trivy binary not found")
+        binary = "docker" if use_docker else "trivy"
+        return TrivyResult(exit_code=-1, stderr=f"{binary} binary not found")
     except Exception as e:
         return TrivyResult(exit_code=-1, stderr=str(e))

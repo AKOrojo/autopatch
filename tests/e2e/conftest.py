@@ -50,6 +50,15 @@ def cloned_vm(clone_service):
 @pytest.fixture(scope="session")
 def clone_ip(cloned_vm):
     """Return the IP address of the cloned VM."""
-    ip = cloned_vm.vm_ip or cloned_vm.ssh_host
-    assert ip, "No IP address for cloned VM"
+    ip = cloned_vm.vm_ip
+    # ssh_host might be "user@ip" — extract the IP part
+    if not ip and cloned_vm.ssh_host and "@" in cloned_vm.ssh_host:
+        candidate = cloned_vm.ssh_host.split("@", 1)[1]
+        if candidate:
+            ip = candidate
+    assert ip, (
+        f"No IP address for cloned VM (vm_id={cloned_vm.vm_id}, "
+        f"vm_ip={cloned_vm.vm_ip!r}, ssh_host={cloned_vm.ssh_host!r}). "
+        f"Metasploitable 2 may need more time to get a DHCP lease."
+    )
     return ip
