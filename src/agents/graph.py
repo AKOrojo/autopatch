@@ -27,6 +27,7 @@ from src.agents.lead_agent import lead_node
 from src.agents.nodes.retry_decision import retry_decision_node
 from src.agents.nodes.rollback_and_replan import rollback_and_replan_node
 from src.agents.nodes.dead_letter import dead_letter_node
+from src.agents.nodes.approval_gate import approval_gate_node
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,12 @@ def _route_after_verification(state: AutopatchState) -> str:
     return "retry_decision"
 
 
+def _route_after_approval(state: AutopatchState) -> str:
+    if state.get("approval_status") == "approved":
+        return "init_retry"
+    return "finalize"
+
+
 def _route_after_retry(state: AutopatchState) -> str:
     """Route based on retry decision."""
     status = state.get("status", "")
@@ -101,6 +108,7 @@ def build_graph():
     graph.add_node("verification", verification_node)
     graph.add_node("retry_decision", retry_decision_node)
     graph.add_node("rollback_and_replan", rollback_and_replan_node)
+    graph.add_node("approval_gate", approval_gate_node)
     graph.add_node("dead_letter", dead_letter_node)
     graph.add_node("finalize", _finalize_node)
 
@@ -114,11 +122,15 @@ def build_graph():
     })
     graph.add_edge("research", "docs")
     graph.add_conditional_edges("docs", _route_after_docs, {
-        "executor": "init_retry",
+        "executor": "approval_gate",
         "lead": "lead",
     })
     graph.add_conditional_edges("lead", _route_after_lead, {
-        "executor": "init_retry",
+        "executor": "approval_gate",
+        "finalize": "finalize",
+    })
+    graph.add_conditional_edges("approval_gate", _route_after_approval, {
+        "init_retry": "init_retry",
         "finalize": "finalize",
     })
     graph.add_edge("init_retry", "executor")

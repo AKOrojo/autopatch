@@ -40,6 +40,14 @@ class AutopatchState(TypedDict):
     status: str                     # pending / evaluating / researching / planning / executing / executed / complete / out_of_scope / error
     error: str | None
 
+    # Approval gate
+    asset_tier: str                     # dev / staging / prod
+    approval_status: str                # pending / approved / waiting / rejected
+    approval_auto_approved: bool
+    approval_policy: dict | None        # loaded from DB at task start
+    global_mode: str                    # auto / manual
+    approval_request_id: str | None     # UUID of the approval_requests row
+
     # Verification (from verification agent)
     verification_results: dict | None
     pre_services: list[str]
@@ -95,4 +103,10 @@ def make_initial_state(
         remediation_started_at=None,
         dead_letter_reason=None,
         artifact_bundle_path=None,
+        asset_tier="dev",
+        approval_status="pending",
+        approval_auto_approved=False,
+        approval_policy=None,
+        global_mode="auto",
+        approval_request_id=None,
     )
