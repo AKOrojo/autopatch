@@ -411,6 +411,24 @@ Set `NVD_API_KEY` in your `.env` for higher NVD rate limits (50 req/30s vs 5 req
 
 </details>
 
+## Scope of Vulnerabilities
+
+Autopatch is scoped to treat vulnerabilities related to **system administration, infrastructure, and state configuration** on Linux systems. It explicitly distinguishes itself from software engineering tasks such as modifying application source code to fix bugs like SQL injection or XSS.
+
+### In-Scope Categories
+
+| Category | Description | Examples |
+|----------|-------------|----------|
+| **Configuration Vulnerabilities** | Security issues remediated by modifying system or application configuration files to enforce secure states | Insecure `sshd_config` (root login permitted), misconfigured `nginx.conf` (directory traversal), weak `pg_hba.conf` (trust authentication), cron jobs executing world-writable scripts as root, insecure NFS exports (`no_root_squash`), databases bound to public interfaces without authentication |
+| **Dependency & Package Management** | Vulnerabilities from outdated, unpatched, or compromised software packages | Log4j (CVE-2021-44228), Dirty COW (CVE-2016-5195), outdated Samba/OpenSSH/ProFTPD versions |
+| **Permissions & Access Control** | Improper file ownership, unauthorized user access, or hazardous network exposure | SUID/SGID bit misconfigurations, world-writable `/etc/passwd`, overly permissive sudoers, misconfigured firewall rules |
+
+### Scope Constraints
+
+- **CWE filtering:** The Evaluator Agent filters for Infrastructure and Configuration CWEs during triage, routing only in-scope vulnerabilities into the remediation pipeline.
+- **Operating system:** The domain targets Linux systems, bounded to objects such as hosts, files, directories, users, groups, services, packages, ports, and firewall rules.
+- **Out of scope:** Application-layer bugs requiring source code changes (e.g., SQL injection, insecure deserialization, XSS) fall outside the framework's remediation capabilities.
+
 ## Agent Pipeline
 
 Autopatch orchestrates six specialized agents via [LangGraph](https://github.com/langchain-ai/langgraph). Each agent is a node in a directed graph with conditional edges that route based on prior agent outputs.
