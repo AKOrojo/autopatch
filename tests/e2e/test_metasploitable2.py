@@ -18,8 +18,9 @@ from src.agents.graph import build_graph
 
 pytestmark = [pytest.mark.e2e, pytest.mark.live_infra]
 
-# Whether to include OpenVAS in scans (slow: 10-30 min)
-RUN_OPENVAS = os.environ.get("AUTOPATCH_E2E_OPENVAS", "").lower() in ("1", "true", "yes")
+def _run_openvas() -> bool:
+    """Check at call time (after conftest loads .env) whether OpenVAS is enabled."""
+    return os.environ.get("AUTOPATCH_E2E_OPENVAS", "").lower() in ("1", "true", "yes")
 
 
 # ---------------------------------------------------------------------------
@@ -135,10 +136,13 @@ async def scan_results(clone_ip):
     from src.agents.tools.trivy_tool import run_trivy_scan
 
     nuclei = await run_nuclei_scan(clone_ip, severity="critical,high,medium")
+
+    # Trivy fs scan requires local filesystem — for remote targets it may fail.
+    # We still run it for correlation; if it fails, we continue with Nuclei + OpenVAS.
     trivy = await run_trivy_scan(clone_ip, severity="CRITICAL,HIGH,MEDIUM")
 
     openvas = None
-    if RUN_OPENVAS:
+    if _run_openvas():
         from src.agents.tools.openvas_tool import run_openvas_scan
         openvas_result = await run_openvas_scan(clone_ip)
         openvas = openvas_result.findings if openvas_result.exit_code == 0 else None
