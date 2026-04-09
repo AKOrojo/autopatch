@@ -54,7 +54,9 @@ export function useRemediationStream(remediationId: string | null, level = "node
 
   useEffect(() => {
     if (!remediationId) return;
-    const url = `${API_BASE}/api/v1/remediations/${remediationId}/stream?level=${level}`;
+    const token = localStorage.getItem("autopatch_token");
+    const authParam = token ? `&token=${encodeURIComponent(token)}` : "";
+    const url = `${API_BASE}/api/v1/remediations/${remediationId}/stream?level=${level}${authParam}`;
     const es = new EventSource(url);
 
     const handleEvent = (e: MessageEvent) => {

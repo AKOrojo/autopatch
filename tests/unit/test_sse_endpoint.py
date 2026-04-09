@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -14,9 +14,12 @@ def app():
 
 @pytest.fixture
 def client(app):
-    from src.api.dependencies import get_authenticated, get_db
-    app.dependency_overrides[get_authenticated] = lambda: {"auth_type": "api_key"}
+    from src.api.dependencies import get_db, get_settings
     app.dependency_overrides[get_db] = lambda: AsyncMock()
+    # Provide mock settings for token verification
+    mock_settings = MagicMock()
+    mock_settings.api_keys = ["test-key"]
+    app.dependency_overrides[get_settings] = lambda: mock_settings
     return TestClient(app)
 
 
@@ -30,6 +33,8 @@ def test_sse_endpoint_returns_event_stream(client):
                 return
                 yield
             mock_sub.return_value = empty_gen()
-            response = client.get("/api/v1/remediations/test-id/stream?level=node", headers={"Accept": "text/event-stream"})
+            # Use API key header for auth
+            response = client.get("/api/v1/remediations/test-id/stream?level=node",
+                headers={"Accept": "text/event-stream", "X-API-Key": "test-key"})
     assert response.status_code == 200
     assert "text/event-stream" in response.headers["content-type"]

@@ -10,12 +10,22 @@ export interface PaginatedResponse<T> {
   total: number;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("autopatch_token");
+  if (token) return { Authorization: `Bearer ${token}` };
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+  if (apiKey) return { "X-API-Key": apiKey };
+  return {};
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
       ...options.headers,
     },
   });

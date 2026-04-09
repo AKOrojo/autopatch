@@ -8,7 +8,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db, get_authenticated
+from src.api.dependencies import get_db, get_authenticated, get_settings
+from src.api.middleware.auth import verify_token, verify_api_key
 from src.api.models.remediation_event import RemediationEvent
 from src.shared.redis_client import redis_client
 
@@ -64,6 +65,15 @@ async def _event_stream(session: AsyncSession, remediation_id: str, level: str, 
 @router.get("/{remediation_id}/stream")
 async def stream_remediation_events(remediation_id: str, request: Request,
     level: str = Query("node", pattern="^(node|tool|llm)$"),
-    _auth=Depends(get_authenticated), session: AsyncSession = Depends(get_db)):
+    token: str | None = Query(None),
+    session: AsyncSession = Depends(get_db),
+    settings=Depends(get_settings)):
+    # SSE auth: accept token query param (EventSource can't send headers)
+    if token:
+        verify_token(token, settings)
+    else:
+        # Fall back to header-based auth
+        from src.api.dependencies import get_authenticated
+        get_authenticated(request, settings)
     return StreamingResponse(_event_stream(session, remediation_id, level, request),
         media_type="text/event-stream", headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"})
