@@ -113,25 +113,79 @@ class CloneService:
                 raise RuntimeError(f"Terraform init failed: {result.stderr}")
             self._initialized = True
 
-    def discover_ip(self, vm_id: int) -> str:
-        """Read the IP discovered by Terraform's local-exec provisioner."""
-        # The local-exec provisioner in the clone-vm module writes the IP
-        # to /tmp/vm_{vm_id}_ip.txt inside the Terraform container.
-        # We read it via `docker compose exec`.
-        try:
-            result = subprocess.run(
-                [*self.tf.compose.split(), "exec", "-T", DOCKER_SERVICE,
-                 "cat", f"/tmp/vm_{vm_id}_ip.txt"],
-                capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0:
-                ip = result.stdout.strip()
-                if ip:
-                    logger.info("VM %d IP from Terraform discovery: %s", vm_id, ip)
-                    return ip
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
-        logger.warning("Could not read discovered IP for VM %d", vm_id)
+    def discover_ip(self, mac: str, timeout: int = 180, poll_interval: int = 10) -> str:
+        """Discover a VM's IP by matching its MAC in the Windows ARP table.
+
+        Runs on the Windows host (not inside Docker). Pings the subnet
+        broadcast to populate the ARP cache, then matches the MAC.
+
+        Args:
+            mac: MAC address from Terraform output (e.g. "BC:24:11:F0:FB:F6")
+            timeout: Max seconds to wait for discovery
+            poll_interval: Seconds between attempts
+        """
+        import os
+        import platform
+        import re
+        import time
+
+        if not mac:
+            logger.warning("No MAC address provided for IP discovery")
+            return ""
+
+        # Normalize MAC to lowercase with both colon and hyphen formats
+        mac_lower = mac.lower()
+        mac_hyphen = mac_lower.replace(":", "-")
+        mac_colon = mac_lower.replace("-", ":")
+
+        # Determine subnet from Proxmox host IP
+        proxmox_url = os.environ.get("PROXMOX_API_URL", "")
+        proxmox_ip = re.search(r"(\d+\.\d+\.\d+)\.\d+", proxmox_url)
+        subnet_prefix = proxmox_ip.group(1) if proxmox_ip else "10.100.201"
+
+        logger.info("Discovering IP for MAC %s on %s.0/24...", mac, subnet_prefix)
+
+        elapsed = 0
+        while elapsed < timeout:
+            # Ping broadcast to populate ARP cache
+            try:
+                if platform.system() == "Windows":
+                    # Windows: ping broadcast doesn't always work, ping a range
+                    for octet in range(1, 255, 10):
+                        subprocess.run(
+                            ["ping", "-n", "1", "-w", "200", f"{subnet_prefix}.{octet}"],
+                            capture_output=True, timeout=3,
+                        )
+                else:
+                    subprocess.run(
+                        ["ping", "-c", "1", "-W", "1", "-b", f"{subnet_prefix}.255"],
+                        capture_output=True, timeout=3,
+                    )
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+
+            # Read ARP table and match MAC
+            try:
+                arp = subprocess.run(
+                    ["arp", "-a"], capture_output=True, text=True, timeout=10,
+                )
+                for line in arp.stdout.splitlines():
+                    line_lower = line.lower()
+                    if mac_hyphen in line_lower or mac_colon in line_lower:
+                        # Extract IP — Windows: "  10.100.201.27  bc-24-11-..."
+                        ip_match = re.search(r"(\d+\.\d+\.\d+\.\d+)", line)
+                        if ip_match:
+                            ip = ip_match.group(1)
+                            logger.info("Discovered IP %s for MAC %s via ARP", ip, mac)
+                            return ip
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+            logger.info("Waiting for MAC %s in ARP table... (%ds/%ds)", mac, elapsed, timeout)
+
+        logger.warning("Could not discover IP for MAC %s after %ds", mac, timeout)
         return ""
 
     def create_clone(self, request: CloneRequest) -> CloneResult:
@@ -175,11 +229,12 @@ class CloneService:
 
             vm_id = vm_info.get("vm_id")
             vm_ip = vm_info.get("vm_ip", "")
+            vm_mac = vm_info.get("vm_mac", "")
 
             # If Terraform couldn't get the IP (no cloud-init/guest-agent),
-            # discover it via MAC/ARP lookup
-            if vm_id and not vm_ip:
-                vm_ip = self.discover_ip(vm_id)
+            # discover it via MAC/ARP lookup from the Windows host
+            if not vm_ip and vm_mac:
+                vm_ip = self.discover_ip(vm_mac)
 
             ssh_host = vm_info.get("ssh_host", "")
             if vm_ip and (not ssh_host or ssh_host.endswith("@")):

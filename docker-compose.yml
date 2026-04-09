@@ -116,6 +116,49 @@ services:
               count: 2
               capabilities: [gpu]
 
+  terraform:
+    image: hashicorp/terraform:1.9
+    working_dir: /workspace/terraform/environments/dev
+    env_file:
+      - .env
+    environment:
+      TF_VAR_proxmox_api_url: ${PROXMOX_API_URL}
+      TF_VAR_proxmox_api_token: ${PROXMOX_API_TOKEN}
+      TF_VAR_proxmox_node: ${PROXMOX_NODE}
+      TF_VAR_proxmox_tls_insecure: ${PROXMOX_TLS_INSECURE:-true}
+    extra_hosts:
+      - "pve:10.100.201.24"
+    volumes:
+      - ./terraform:/workspace/terraform
+      - terraform_data:/workspace/terraform/environments/dev/.terraform
+    entrypoint: [""]
+    command: ["sh", "-c", "apk add --no-cache curl jq > /dev/null 2>&1; sleep infinity"]
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.17
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./deploy/docker/vault/vault-config.hcl:/vault/config/vault-config.hcl:ro
+      - ./deploy/docker/vault/init-vault.sh:/vault/init-vault.sh:ro
+    command: vault server -config=/vault/config/vault-config.hcl
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   autopatch_pgdata:
   vllm_model_cache:
+  terraform_data:
+  vault_data:

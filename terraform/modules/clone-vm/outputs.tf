@@ -9,11 +9,13 @@ output "vm_name" {
 }
 
 output "vm_ip" {
-  description = "Primary IP address of the cloned VM"
-  value       = coalesce(
-    trimspace(data.local_file.vm_ip.content),
-    try(proxmox_virtual_environment_vm.clone.ipv4_addresses[1][0], ""),
-  )
+  description = "Primary IP address of the cloned VM (empty if no guest agent)"
+  value       = try(proxmox_virtual_environment_vm.clone.ipv4_addresses[1][0], "")
+}
+
+output "vm_mac" {
+  description = "MAC address of the first network interface"
+  value       = try(proxmox_virtual_environment_vm.clone.network_device[0].mac_address, "")
 }
 
 output "target_node" {
@@ -23,8 +25,5 @@ output "target_node" {
 
 output "ssh_host" {
   description = "SSH connection string"
-  value       = "${var.ci_user}@${coalesce(
-    trimspace(data.local_file.vm_ip.content),
-    try(proxmox_virtual_environment_vm.clone.ipv4_addresses[1][0], ""),
-  )}"
+  value       = "${var.ci_user}@${try(proxmox_virtual_environment_vm.clone.ipv4_addresses[1][0], "")}"
 }
