@@ -1,8 +1,7 @@
 """Unit tests for the Ansible tool."""
 
-import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -89,14 +88,38 @@ class TestGenerateInventory:
         assert "ansible_port=2222" in inv
 
 
-class TestRunPlaybook:
+class TestRunPlaybookWithRunner:
+    """Tests for the ansible-runner path."""
+
+    def _mock_runner(self, rc=0, stdout="PLAY RECAP ok=3", stderr="", status="successful"):
+        mock = MagicMock()
+        mock.rc = rc
+        mock.status = status
+        mock.stdout.read.return_value = stdout
+        mock.stderr.read.return_value = stderr
+        return mock
+
+    def _patch_runner(self, return_value=None, side_effect=None):
+        """Inject a fake ansible_runner module and patch it for testing."""
+        import src.agents.tools.ansible_tool as mod
+
+        fake_module = MagicMock()
+        if side_effect:
+            fake_module.run = MagicMock(side_effect=side_effect)
+        else:
+            fake_module.run = MagicMock(return_value=return_value)
+
+        return (
+            patch.object(mod, "HAS_ANSIBLE_RUNNER", True),
+            patch.object(mod, "ansible_runner", fake_module, create=True),
+        )
+
     @pytest.mark.asyncio
     async def test_successful_execution(self):
-        mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(return_value=(b"PLAY RECAP ok=3", b""))
-        mock_proc.returncode = 0
+        mock_result = self._mock_runner(rc=0, stdout="PLAY RECAP ok=3")
+        p1, p2 = self._patch_runner(return_value=mock_result)
 
-        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc):
+        with p1, p2:
             result = await run_playbook('[]', '[target]\nlocalhost\n')
 
         assert result.ok
@@ -105,52 +128,73 @@ class TestRunPlaybook:
 
     @pytest.mark.asyncio
     async def test_check_mode_passes_flag(self):
-        mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(return_value=(b"CHECK MODE", b""))
-        mock_proc.returncode = 0
+        mock_result = self._mock_runner()
+        p1, p2 = self._patch_runner(return_value=mock_result)
 
-        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+        with p1, p2 as fake_mod:
             await run_playbook('[]', '[target]\nlocalhost\n', check_mode=True)
+            call_kwargs = fake_mod.run.call_args[1]
 
-        call_args = mock_exec.call_args[0]
-        assert "--check" in call_args
+        assert "--check" in (call_kwargs.get("cmdline") or "")
 
     @pytest.mark.asyncio
-    async def test_extra_vars_passed_as_json(self):
-        mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(return_value=(b"ok", b""))
-        mock_proc.returncode = 0
+    async def test_extra_vars_passed(self):
+        mock_result = self._mock_runner()
+        p1, p2 = self._patch_runner(return_value=mock_result)
 
-        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+        with p1, p2 as fake_mod:
             await run_playbook('[]', '[target]\nlocalhost\n', extra_vars={"pkg": "nginx"})
+            call_kwargs = fake_mod.run.call_args[1]
 
-        call_args = mock_exec.call_args[0]
-        assert "--extra-vars" in call_args
-        ev_idx = list(call_args).index("--extra-vars")
-        assert '"pkg"' in call_args[ev_idx + 1]
+        assert call_kwargs["extravars"] == {"pkg": "nginx"}
 
     @pytest.mark.asyncio
-    async def test_timeout_kills_process(self):
-        mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
-        mock_proc.kill = MagicMock()
+    async def test_failed_execution(self):
+        mock_result = self._mock_runner(rc=2, stdout="", stderr="FATAL", status="failed")
+        p1, p2 = self._patch_runner(return_value=mock_result)
 
-        with (
-            patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc),
-            patch("src.agents.tools.ansible_tool.asyncio.wait_for", side_effect=asyncio.TimeoutError()),
-        ):
-            result = await run_playbook('[]', '[target]\nlocalhost\n', timeout=1)
+        with p1, p2:
+            result = await run_playbook('[]', '[target]\nlocalhost\n')
+
+        assert not result.ok
+        assert result.exit_code == 2
+
+    @pytest.mark.asyncio
+    async def test_exception_returns_error(self):
+        p1, p2 = self._patch_runner(side_effect=RuntimeError("runner crashed"))
+
+        with p1, p2:
+            result = await run_playbook('[]', '[target]\nlocalhost\n')
 
         assert result.exit_code == -1
-        assert "timed out" in result.stderr.lower()
+        assert "runner crashed" in result.stderr
 
     @pytest.mark.asyncio
-    async def test_temp_files_cleaned_up(self):
+    async def test_roles_path_set_in_envvars(self):
+        mock_result = self._mock_runner()
+        p1, p2 = self._patch_runner(return_value=mock_result)
+
+        with p1, p2 as fake_mod:
+            await run_playbook('[]', '[target]\nlocalhost\n')
+            call_kwargs = fake_mod.run.call_args[1]
+
+        assert "ANSIBLE_ROLES_PATH" in call_kwargs["envvars"]
+
+
+class TestRunPlaybookSubprocessFallback:
+    """Tests for the subprocess fallback path (Windows)."""
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_subprocess(self):
+        from unittest.mock import AsyncMock
         mock_proc = AsyncMock()
         mock_proc.communicate = AsyncMock(return_value=(b"ok", b""))
         mock_proc.returncode = 0
 
-        with patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc):
+        with (
+            patch("src.agents.tools.ansible_tool.HAS_ANSIBLE_RUNNER", False),
+            patch("src.agents.tools.ansible_tool.asyncio.create_subprocess_exec", return_value=mock_proc),
+        ):
             result = await run_playbook('[]', '[target]\nlocalhost\n')
 
         assert result.ok
