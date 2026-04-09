@@ -22,7 +22,7 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
-  const [scannerType, setScannerType] = useState("openvas");
+  const [selectedScanners, setSelectedScanners] = useState<Set<string>>(new Set(["openvas"]));
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -58,6 +58,17 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
       a.ip_address.includes(searchQuery)
   );
 
+  const toggleScanner = (value: string) => {
+    setSelectedScanners((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  };
+
+  const totalScans = selectedAssetIds.size * selectedScanners.size;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -66,15 +77,21 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
       setError("Select at least one asset to scan.");
       return;
     }
+    if (selectedScanners.size === 0) {
+      setError("Select at least one scanner.");
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const promises = Array.from(selectedAssetIds).map((asset_id) =>
-        createScan({ asset_id, scanner_type: scannerType })
+      const promises = Array.from(selectedAssetIds).flatMap((asset_id) =>
+        Array.from(selectedScanners).map((scanner_type) =>
+          createScan({ asset_id, scanner_type })
+        )
       );
       await Promise.all(promises);
       setSelectedAssetIds(new Set());
-      setScannerType("openvas");
+      setSelectedScanners(new Set(["openvas"]));
       setSearchQuery("");
       setOpen(false);
       onScanCreated();
@@ -114,21 +131,33 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
               </div>
             )}
 
-            {/* Scanner Type */}
+            {/* Scanner Types - multi-select */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Scanner Type</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">
+                  Scanners <span className="text-destructive ml-0.5">*</span>
+                </label>
+                {selectedScanners.size > 0 && (
+                  <span className="text-xs text-muted-foreground">{selectedScanners.size} selected</span>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 {SCANNER_TYPES.map((s) => (
                   <button
                     key={s.value}
                     type="button"
-                    onClick={() => setScannerType(s.value)}
-                    className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                      scannerType === s.value
+                    onClick={() => toggleScanner(s.value)}
+                    className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors relative ${
+                      selectedScanners.has(s.value)
                         ? "border-primary bg-primary/5 text-foreground"
                         : "border-border text-muted-foreground hover:border-primary/50"
                     }`}
                   >
+                    {selectedScanners.has(s.value) && (
+                      <span className="absolute top-1.5 right-1.5 flex items-center justify-center size-4 rounded bg-primary text-primary-foreground">
+                        <Check className="size-3" />
+                      </span>
+                    )}
                     <div className="font-medium">{s.label}</div>
                     <div className="text-xs mt-0.5 opacity-70">{s.desc}</div>
                   </button>
@@ -207,10 +236,10 @@ export function InitiateScanDialog({ onScanCreated }: InitiateScanDialogProps) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting || selectedAssetIds.size === 0}>
+              <Button type="submit" disabled={submitting || totalScans === 0}>
                 {submitting
                   ? "Starting..."
-                  : `Scan ${selectedAssetIds.size || ""} Asset${selectedAssetIds.size !== 1 ? "s" : ""}`}
+                  : `Start ${totalScans} Scan${totalScans !== 1 ? "s" : ""}`}
               </Button>
             </div>
           </form>
