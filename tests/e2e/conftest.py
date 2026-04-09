@@ -14,6 +14,11 @@ os.environ.setdefault(
     "terraform@pam!terraform=dd134b21-9038-41d8-9d1c-204ddeda089a",
 )
 os.environ.setdefault("PROXMOX_NODE", "pve")
+# Docker service names → localhost for tests running on the host
+os.environ.setdefault("VAULT_ADDR", "http://localhost:8200")
+os.environ.setdefault("MINIO_ENDPOINT", "localhost:9000")
+os.environ.setdefault("LLM_BASE_URL", os.environ.get("LLM_BASE_URL", "http://10.100.201.26:8001/v1"))
+os.environ.setdefault("NOTIFICATION_WEBHOOK_URL", "")
 
 
 CLONE_TEMPLATE_ID = 101  # meta2-temp
