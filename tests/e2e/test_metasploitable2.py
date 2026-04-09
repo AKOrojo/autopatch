@@ -270,7 +270,7 @@ async def test_remediate_ssh_root_login(cloned_vm, clone_ip, correlated_vulns):
     if final_state.get("execution_result"):
         er = final_state["execution_result"]
         print(f"  pre_commands: {len(er.get('pre_commands', []))}")
-        print(f"  playbook exit: {er.get('playbook', {}).get('exit_code', '?')}")
+        print(f"  playbook exit: {(er.get('playbook') or {}).get('exit_code', '?')}")
         print(f"  post_commands: {len(er.get('post_commands', []))}")
 
     assert final_state["status"] in ("remediated", "executed", "dead_letter", "error"), \
