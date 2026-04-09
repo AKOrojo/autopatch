@@ -3,7 +3,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -49,6 +49,7 @@ def _get_scan(scan_id: str) -> dict:
             "status": scan.status,
             "scanner_task_id": scan.scanner_task_id,
             "config": scan.config or {},
+            "report_id": str(scan.report_id) if scan.report_id else None,
             "asset_ip": asset.ip_address,
         }
 
@@ -62,7 +63,7 @@ def _update_scan(scan_id: str, **kwargs) -> None:
         session.commit()
 
 
-def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str) -> None:
+def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str, report_id: str | None = None) -> None:
     """Persist Vulnerability records with CVE dedup (upsert on asset_id+cve_id)."""
     from src.api.models.vulnerability import Vulnerability
 
@@ -72,6 +73,7 @@ def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str)
         base = dict(
             scan_id=scan_id,
             asset_id=asset_id,
+            report_id=report_id,
             cwe_id=v.get("cwe_id"),
             title=v.get("title", "Unknown"),
             description=v.get("description"),
@@ -108,7 +110,7 @@ def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str)
         if cve_rows:
             stmt = pg_insert(Vulnerability).values(cve_rows)
             stmt = stmt.on_conflict_do_update(
-                constraint="uq_vuln_asset_cve",
+                constraint="uq_vuln_report_asset_cve",
                 set_={f: stmt.excluded[f] for f in update_fields},
             )
             session.execute(stmt)
@@ -123,6 +125,33 @@ def _create_vulnerabilities(vuln_dicts: list[dict], scan_id: str, asset_id: str)
 # ---------------------------------------------------------------------------
 # Core async implementations
 # ---------------------------------------------------------------------------
+
+def _check_report_completion(report_id: str) -> None:
+    """If all scans in a report are done, mark the report as completed."""
+    from src.api.models.scan import Scan
+    from src.api.models.scan_report import ScanReport
+    from src.api.models.vulnerability import Vulnerability
+
+    with _get_db_session() as session:
+        scans = session.execute(
+            select(Scan).where(Scan.report_id == report_id)
+        ).scalars().all()
+
+        if all(s.status in ("completed", "failed") for s in scans):
+            total_vulns = session.execute(
+                select(func.count(Vulnerability.id)).where(Vulnerability.report_id == report_id)
+            ).scalar() or 0
+
+            overall_status = "completed" if any(s.status == "completed" for s in scans) else "failed"
+            session.execute(
+                update(ScanReport).where(ScanReport.id == report_id).values(
+                    status=overall_status,
+                    total_vulns=total_vulns,
+                    completed_at=datetime.now(timezone.utc),
+                )
+            )
+            session.commit()
+
 
 async def _run_scan_async(scan_id: str) -> None:
     scan = _get_scan(scan_id)
@@ -168,13 +197,16 @@ async def _ingest_results_async(scan_id: str) -> None:
             enrichment_data = fetch_enrichment_for_cves(session, all_cve_ids)
         results = enrich_vuln_dicts(results, enrichment_data)
 
-    _create_vulnerabilities(results, scan_id, scan["asset_id"])
+    _create_vulnerabilities(results, scan_id, scan["asset_id"], scan.get("report_id"))
     _update_scan(
         scan_id,
         status="completed",
         completed_at=datetime.now(timezone.utc),
         vuln_count=len(results),
     )
+
+    if scan.get("report_id"):
+        _check_report_completion(scan["report_id"])
 
 
 async def _poll_openvas_async() -> None:
