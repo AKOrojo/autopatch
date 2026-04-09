@@ -28,6 +28,7 @@ class CloneRequest:
     network_bridge: str = ""
     ip_address: str = ""
     full_clone: bool = True
+    cloud_init: bool = True
 
 
 @dataclass
@@ -229,6 +230,7 @@ class CloneService:
                     "storage_pool": request.storage_pool,
                     **({"network_bridge": request.network_bridge} if request.network_bridge else {}),
                     "ip_address": request.ip_address,
+                    "cloud_init": request.cloud_init,
                 }
             }
         }

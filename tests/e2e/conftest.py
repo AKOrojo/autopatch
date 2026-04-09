@@ -37,6 +37,7 @@ def cloned_vm(clone_service):
         memory=2048,
         disk_size="32G",
         network_bridge="vmbr0",
+        cloud_init=False,  # Metasploitable 2 has no cloud-init
     ))
     assert result.success, f"Clone creation failed: {result.error}"
     assert result.vm_id is not None
