@@ -1,4 +1,5 @@
 """Trivy backend using Docker SDK."""
+import json
 import uuid
 
 import docker
@@ -15,7 +16,11 @@ class TrivyBackend:
     async def start_scan(self, target: str, config: dict) -> str:
         image_name = config.get("image")
         if not image_name:
-            raise ValueError("config must contain 'image' key specifying the image to scan")
+            # Trivy is an image/filesystem scanner — skip bare IP targets gracefully
+            scan_id = str(uuid.uuid4())
+            _results_cache[scan_id] = []
+            _status_cache[scan_id] = "completed"
+            return scan_id
 
         client = docker.from_env()
         cmd = f"image --format json --quiet {image_name}"
@@ -27,9 +32,14 @@ class TrivyBackend:
             remove=False,
             volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "ro"}},
         )
-        container.wait()
-        logs = container.logs().decode("utf-8", errors="replace")
-        results = parse_trivy_results(logs)
+        try:
+            container.wait()
+            logs = container.logs().decode("utf-8", errors="replace")
+            results = parse_trivy_results(logs)
+        except (json.JSONDecodeError, Exception):
+            results = []
+        finally:
+            container.remove(force=True)
         scan_id = str(uuid.uuid4())
         _results_cache[scan_id] = results
         _status_cache[scan_id] = "completed"

@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Response, HTTPException
-from sqlalchemy import select, func
+from fastapi import APIRouter, Depends, Response, HTTPException, status
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db, get_authenticated
@@ -59,6 +59,21 @@ async def list_scan_reports(
         select(ScanReport).order_by(ScanReport.created_at.desc()).limit(limit).offset(offset)
     )
     return result.scalars().all()
+
+
+@router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_scan_report(
+    report_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    auth: dict = Depends(get_authenticated),
+):
+    report = (await db.execute(select(ScanReport).where(ScanReport.id == report_id))).scalar_one_or_none()
+    if not report:
+        raise HTTPException(404, "Report not found")
+    await db.execute(delete(Vulnerability).where(Vulnerability.report_id == report_id))
+    await db.execute(delete(Scan).where(Scan.report_id == report_id))
+    await db.delete(report)
+    await db.commit()
 
 
 @router.get("/{report_id}")

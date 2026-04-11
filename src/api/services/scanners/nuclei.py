@@ -5,7 +5,7 @@ import docker
 
 from src.api.services.scanners.parser import parse_nuclei_results
 
-NUCLEI_IMAGE = "projectdiscovery/nuclei:v3.3.7"
+NUCLEI_IMAGE = "projectdiscovery/nuclei:v3.4.3"
 
 _results_cache: dict[str, list[dict]] = {}
 _status_cache: dict[str, str] = {}
@@ -14,12 +14,13 @@ _status_cache: dict[str, str] = {}
 class NucleiBackend:
     async def start_scan(self, target: str, config: dict) -> str:
         client = docker.from_env()
-        cmd = f"-u http://{target} -jsonl -silent"
+        urls = config.get("urls") or [f"https://{target}:8006", f"https://{target}", f"http://{target}"]
+        url_args = " ".join(f"-u {u}" for u in urls)
+        cmd = f"{url_args} -jsonl -silent"
         container = client.containers.run(
             NUCLEI_IMAGE,
             cmd,
             detach=True,
-            network_mode="host",
             remove=False,
         )
         container.wait()
