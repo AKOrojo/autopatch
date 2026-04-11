@@ -226,7 +226,7 @@ async def _poll_openvas_async() -> None:
         scan_id = str(scan.id)
         try:
             status = await backend.get_scan_status(scan.scanner_task_id)
-            if status == "done":
+            if status == "completed":
                 await _ingest_results_async(scan_id)
         except Exception:
             logger.exception("poll_openvas failed for scan %s", scan_id)

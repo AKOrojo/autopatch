@@ -45,4 +45,10 @@ celery_app.conf.update(
     },
 )
 
-celery_app.autodiscover_tasks(["src.workers"])
+celery_app.conf.include = [
+    "src.workers.scan_tasks",
+    "src.workers.enrichment_tasks",
+    "src.workers.remediation_tasks",
+    "src.workers.clone_tasks",
+    "src.workers.notification_tasks",
+]
