@@ -111,3 +111,36 @@ async def test_stream_logs_search_filter(client, api_key_headers):
     # The non-matching lines should NOT be present
     assert "All good" not in body
     assert "Still fine" not in body
+
+
+@pytest.mark.asyncio
+async def test_containers_returns_name_service_state_only(client, api_key_headers):
+    """The /containers endpoint should return only name, service, and state fields."""
+    mock_containers = [
+        {"name": "autopatch-api-1", "service": "api", "state": "running",
+         "status": "Up 2 hours", "health": "healthy", "ports": [{"PublishedPort": 8000}], "image": "img"},
+    ]
+    with patch("src.api.routes.system_status._get_containers", return_value=mock_containers):
+        resp = await client.get("/api/v1/system/containers", headers=api_key_headers)
+    data = resp.json()
+    assert set(data[0].keys()) == {"name", "service", "state"}
+
+
+@pytest.mark.asyncio
+async def test_stream_logs_respects_tail_param(client, api_key_headers):
+    """The tail param should be passed to container.logs()."""
+    log_lines = ["2026-04-10T12:00:00.000Z line1\n"]
+    mock_container = _make_mock_container(service="api", log_lines=log_lines)
+    mock_client = MagicMock()
+    mock_client.containers.list.return_value = [mock_container]
+
+    with patch("src.api.routes.system_status.docker") as mock_docker:
+        mock_docker.from_env.return_value = mock_client
+        await client.get(
+            "/api/v1/system/logs/api?tail=500&follow=false",
+            headers=api_key_headers,
+        )
+    # Verify tail=500 was passed to container.logs()
+    mock_container.logs.assert_called_once()
+    call_kwargs = mock_container.logs.call_args[1]
+    assert call_kwargs["tail"] == 500
