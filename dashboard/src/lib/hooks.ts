@@ -75,3 +75,54 @@ export function useRemediationStream(remediationId: string | null, level = "node
 
   return { events, connected };
 }
+
+export interface LogEvent {
+  line: string;
+  timestamp: string;
+  stream: "stdout" | "stderr";
+}
+
+export function useContainerLogs(
+  service: string | null,
+  options: { tail?: number; search?: string; since?: string; follow?: boolean } = {},
+) {
+  const { tail = 200, search, since, follow = true } = options;
+  const [lines, setLines] = useState<LogEvent[]>([]);
+  const [connected, setConnected] = useState(false);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (!service) return;
+    setLines([]);
+    setConnected(false);
+
+    const token = localStorage.getItem("autopatch_token");
+    const params = new URLSearchParams();
+    params.set("tail", String(tail));
+    params.set("follow", String(follow));
+    if (search) params.set("search", search);
+    if (since) params.set("since", since);
+    if (token) params.set("token", encodeURIComponent(token));
+
+    const url = `${API_BASE}/api/v1/system/logs/${service}?${params}`;
+    const es = new EventSource(url);
+
+    es.addEventListener("connected", () => setConnected(true));
+
+    es.addEventListener("message", (e: MessageEvent) => {
+      const event: LogEvent = JSON.parse(e.data);
+      setLines((prev) => {
+        const next = [...prev, event];
+        return next.length > 5000 ? next.slice(-5000) : next;
+      });
+    });
+
+    es.onerror = () => setConnected(false);
+
+    return () => {
+      es.close();
+    };
+  }, [service, tail, search, since, follow]);
+
+  return { lines, connected, paused, setPaused };
+}

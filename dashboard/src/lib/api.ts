@@ -199,6 +199,10 @@ export async function createScanReport(data: ScanReportCreate): Promise<ScanRepo
   return res.json();
 }
 
+export async function deleteScanReport(id: string): Promise<void> {
+  await apiFetch(`/api/v1/scan-reports/${id}`, { method: "DELETE" });
+}
+
 export interface Vulnerability {
   id: string;
   scan_id: string | null;
@@ -327,4 +331,37 @@ export async function getSettings(): Promise<AppSettings> {
 
 export async function updateSettings(data: { global_mode?: string }) {
   return apiFetch("/api/v1/settings", { method: "PUT", body: JSON.stringify(data) });
+}
+
+// System status
+export interface ContainerStatus {
+  name: string;
+  service: string;
+  state: string;
+  status: string;
+  health: string;
+  ports: { PublishedPort: number; TargetPort: number; Protocol: string }[];
+  image: string;
+}
+
+export interface SystemStatus {
+  containers: ContainerStatus[];
+  summary: { total: number; running: number; stopped: number };
+}
+
+export async function getSystemStatus(): Promise<SystemStatus> {
+  const res = await apiFetch("/api/v1/system/status");
+  return res.json();
+}
+
+export interface ContainerInfo {
+  name: string;
+  service: string;
+  state: string;
+}
+
+export async function getContainers(): Promise<ContainerInfo[]> {
+  const res = await apiFetch("/api/v1/system/containers");
+  if (!res.ok) throw new Error("Failed to fetch containers");
+  return res.json();
 }
