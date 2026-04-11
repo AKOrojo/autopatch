@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   getScanReport,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/api";
 import { SeverityBadge, StatusBadge } from "@/components/badge";
 import { Button } from "@/components/ui/button";
-import { Wrench, ArrowLeft, Shield, ShieldOff } from "lucide-react";
+import { Wrench, ArrowLeft, Shield, ShieldOff, RefreshCw, Loader2 } from "lucide-react";
 
 export default function ReportDetailPage({
   params,
@@ -25,19 +25,51 @@ export default function ReportDetailPage({
   const [loading, setLoading] = useState(true);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [polling, setPolling] = useState(false);
 
+  const fetchReport = useCallback(async () => {
+    try {
+      const r = await getScanReport(id);
+      setReport(r);
+      setError(null);
+      try {
+        setAsset(await getAsset(r.asset_id));
+      } catch {}
+      // Return whether we should keep polling
+      const hasRunning = r.scans.some(
+        (s) => s.status === "pending" || s.status === "running"
+      );
+      return hasRunning;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load scan report."
+      );
+      return false;
+    }
+  }, [id]);
+
+  // Initial load
   useEffect(() => {
     setLoading(true);
-    getScanReport(id)
-      .then(async (r) => {
-        setReport(r);
-        try {
-          setAsset(await getAsset(r.asset_id));
-        } catch {}
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [id]);
+    fetchReport().finally(() => setLoading(false));
+  }, [fetchReport]);
+
+  // Auto-poll while scans are running
+  useEffect(() => {
+    if (!report) return;
+    const hasRunning = report.scans.some(
+      (s) => s.status === "pending" || s.status === "running"
+    );
+    if (!hasRunning) {
+      setPolling(false);
+      return;
+    }
+    setPolling(true);
+    const interval = setInterval(() => {
+      fetchReport();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [report, fetchReport]);
 
   const handleRemediate = async (vulnId: string) => {
     setError(null);
@@ -47,7 +79,7 @@ export default function ReportDetailPage({
       router.push(`/remediations/${result.task_id}`);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to launch remediation.",
+        err instanceof Error ? err.message : "Failed to launch remediation."
       );
       setLaunchingId(null);
     }
@@ -59,6 +91,26 @@ export default function ReportDetailPage({
         <div className="h-8 bg-muted rounded w-64" />
         <div className="h-4 bg-muted rounded w-48" />
         <div className="h-64 bg-muted rounded" />
+      </div>
+    );
+  }
+
+  if (error && !report) {
+    return (
+      <div>
+        <button
+          onClick={() => router.push("/scans")}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="size-4" /> Back to Reports
+        </button>
+        <div className="border rounded-lg px-6 py-12 text-center">
+          <p className="text-destructive font-medium mb-2">Failed to load report</p>
+          <p className="text-muted-foreground text-sm mb-4">{error}</p>
+          <Button size="sm" variant="outline" onClick={() => { setLoading(true); fetchReport().finally(() => setLoading(false)); }}>
+            <RefreshCw data-icon="inline-start" /> Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -85,9 +137,17 @@ export default function ReportDetailPage({
             {new Date(report.created_at).toLocaleString()}
           </p>
         </div>
-        <StatusBadge status={report.status} />
+        <div className="flex items-center gap-2">
+          {polling && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" /> Auto-refreshing
+            </span>
+          )}
+          <StatusBadge status={report.status} />
+        </div>
       </div>
 
+      {/* Scan progress cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {report.scans.map((scan) => (
           <div key={scan.id} className="border rounded-lg p-4">
@@ -96,11 +156,22 @@ export default function ReportDetailPage({
               <StatusBadge status={scan.status} />
             </div>
             <p className="text-xs text-muted-foreground">
-              {scan.vuln_count} vulnerabilities
-              {scan.completed_at
-                ? ` \u00B7 ${new Date(scan.completed_at).toLocaleString()}`
+              {scan.status === "running" && scan.started_at
+                ? `Started ${new Date(scan.started_at).toLocaleString()}`
+                : scan.status === "pending"
+                  ? "Waiting to start..."
+                  : `${scan.vuln_count} vulnerabilities`}
+              {scan.completed_at && scan.status === "completed"
+                ? ` · Completed ${new Date(scan.completed_at).toLocaleString()}`
                 : ""}
             </p>
+            {(scan.status === "running" || scan.status === "pending") && (
+              <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${scan.status === "running" ? "bg-blue-500 animate-pulse w-2/3" : "bg-muted-foreground/30 w-0"}`}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -117,7 +188,9 @@ export default function ReportDetailPage({
 
       {report.vulnerabilities.length === 0 ? (
         <div className="border rounded-lg px-4 py-8 text-center text-muted-foreground">
-          No vulnerabilities found in this scan.
+          {polling
+            ? "Scan in progress — vulnerabilities will appear here as they are found."
+            : "No vulnerabilities found in this scan."}
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
