@@ -21,6 +21,7 @@ class NucleiBackend:
             NUCLEI_IMAGE,
             cmd,
             detach=True,
+            network_mode="host",
             remove=False,
         )
         container.wait()
