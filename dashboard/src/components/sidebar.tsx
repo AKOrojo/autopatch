@@ -13,6 +13,8 @@ const navItems = [
   { href: "/remediations", label: "Remediations" },
   { href: "/approvals", label: "Approvals" },
   { href: "/audit-logs", label: "Audit Log" },
+  { href: "/system-status", label: "System Status" },
+  { href: "/logs", label: "Logs" },
   { href: "/settings", label: "Settings" },
 ];
 
