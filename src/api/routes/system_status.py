@@ -51,7 +51,7 @@ def _get_containers() -> list[dict]:
 @router.get("/containers")
 async def get_containers(auth: dict = Depends(get_authenticated)):
     """Return a lightweight list of container names and states."""
-    containers = await _run_docker_ps()
+    containers = _get_containers()
     return [
         {"name": c["name"], "service": c["service"], "state": c["state"]}
         for c in containers
@@ -61,7 +61,7 @@ async def get_containers(auth: dict = Depends(get_authenticated)):
 @router.get("/status")
 async def get_system_status(auth: dict = Depends(get_authenticated)):
     """Return status of all Docker Compose services."""
-    containers = await _run_docker_ps()
+    containers = _get_containers()
     running = sum(1 for c in containers if c["state"] == "running")
     return {
         "containers": containers,
