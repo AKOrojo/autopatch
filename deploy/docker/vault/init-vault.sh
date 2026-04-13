@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Initialise Vault, unseal it, and configure the SSH CA secrets engine.
-# This script is designed to run once against a fresh dev-mode Vault or
-# a file-backend Vault that has never been initialised.
+# This script is designed to run once against a fresh Vault that has never
+# been initialised.  It is idempotent — safe to re-run after partial failure.
 set -eu
 
 VAULT_ADDR="${VAULT_ADDR:-http://127.0.0.1:8200}"
@@ -19,14 +19,31 @@ if vault status -format=json | grep -q '"initialized": false'; then
     echo "==> Init payload written to /vault/data/init.json"
 fi
 
-UNSEAL_KEY=$(cat /vault/data/init.json | sed -n 's/.*"unseal_keys_b64":\["\([^"]*\)".*/\1/p')
-ROOT_TOKEN=$(cat /vault/data/init.json | sed -n 's/.*"root_token":"\([^"]*\)".*/\1/p')
+# Robust JSON field extraction using grep -o (POSIX, works with busybox)
+UNSEAL_KEY=$(grep -o '"unseal_keys_b64":\["[^"]*"' /vault/data/init.json \
+    | grep -o '"[^"]*"$' | tr -d '"')
+ROOT_TOKEN=$(grep -o '"root_token":"[^"]*"' /vault/data/init.json \
+    | grep -o '"[^"]*"$' | tr -d '"')
+
+if [ -z "$UNSEAL_KEY" ] || [ -z "$ROOT_TOKEN" ]; then
+    echo "ERROR: Could not parse unseal key or root token from /vault/data/init.json" >&2
+    echo "       The file may be corrupt. Delete it and re-run make vault-init." >&2
+    exit 1
+fi
+
 export VAULT_TOKEN="$ROOT_TOKEN"
 
 # --- Unseal ------------------------------------------------------------------
+# vault operator unseal requires a TTY in v1.17+ even when the key is passed
+# as an argument.  Use the HTTP API via wget instead.
 if vault status -format=json | grep -q '"sealed": true'; then
     echo "==> Unsealing Vault..."
-    vault operator unseal "$UNSEAL_KEY"
+    wget -qO- \
+        --header="Content-Type: application/json" \
+        --post-data="{\"key\":\"${UNSEAL_KEY}\"}" \
+        "${VAULT_ADDR}/v1/sys/unseal" > /dev/null \
+        && echo "==> Vault unsealed." \
+        || { echo "ERROR: Unseal API call failed."; exit 1; }
 fi
 
 echo "==> Vault is unsealed and ready."
@@ -102,7 +119,7 @@ echo "  Role ID    : $ROLE_ID"
 echo "  Secret ID  : $SECRET_ID"
 echo "============================================"
 echo ""
-echo "Set these in your .env:"
+echo "Add these to your .env:"
 echo "  VAULT_ADDR=http://vault:8200"
 echo "  VAULT_ROLE_ID=$ROLE_ID"
 echo "  VAULT_SECRET_ID=$SECRET_ID"

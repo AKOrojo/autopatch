@@ -98,6 +98,8 @@ services:
 
   vllm:
     image: vllm/vllm-openai:v0.8.5
+    profiles:
+      - gpu
     ports:
       - "8001:8000"
     volumes:
@@ -159,7 +161,10 @@ services:
       - vault_data:/vault/data
       - ./deploy/docker/vault/vault-config.hcl:/vault/config/vault-config.hcl:ro
       - ./deploy/docker/vault/init-vault.sh:/vault/init-vault.sh:ro
-    command: vault server -config=/vault/config/vault-config.hcl
+    # chown runs as root before the image entrypoint drops to the vault user,
+    # preventing "permission denied" on fresh Docker-managed volumes.
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R vault:vault /vault/data /vault/logs 2>/dev/null || true; exec docker-entrypoint.sh vault server -config=/vault/config/vault-config.hcl"]
     healthcheck:
       test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
       interval: 5s

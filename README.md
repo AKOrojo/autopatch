@@ -56,7 +56,7 @@ graph TD
         VAULT[HashiCorp Vault]
         MINIO[MinIO]
         LLM[vLLM - Standalone Server]
-        SCAN[OpenVAS / Trivy / Nuclei]
+        SCAN[OpenVAS / Nuclei]
     end
 
     subgraph External Feeds
@@ -188,10 +188,33 @@ Edit `.env` and set at minimum:
 ### 2. Start the stack
 
 ```bash
-make up          # API, Dashboard, PostgreSQL, Redis
+make up          # Start all services (API, Dashboard, PostgreSQL, Redis, Vault)
 make migrate     # Run database migrations
 make seed        # Create default users and sample assets
 ```
+
+### 3. Initialise Vault
+
+Vault must be bootstrapped once before the API can sign SSH certificates. Run this after `make up`:
+
+```bash
+make vault-init
+```
+
+The script prints `VAULT_ROLE_ID` and `VAULT_SECRET_ID`. Copy those two values into your `.env`:
+
+```ini
+VAULT_ROLE_ID=<printed value>
+VAULT_SECRET_ID=<printed value>
+```
+
+Then restart the services to pick up the new credentials:
+
+```bash
+docker compose restart api celery-worker celery-beat
+```
+
+> **Note:** `make vault-init` is idempotent — safe to re-run if it fails partway through.
 
 To include the OpenVAS vulnerability scanner:
 
@@ -199,49 +222,11 @@ To include the OpenVAS vulnerability scanner:
 make up-full
 ```
 
-### Troubleshooting
-
-<details>
-<summary><strong>Turbopack runtime error on <code>bun run dev</code></strong></summary>
-
-If you see `An unexpected Turbopack error occurred` when starting the dashboard:
-
-1. **Ensure dependencies are installed:** Run `bun install` inside the `dashboard/` directory.
-2. **Check Node.js version:** Next.js 16 requires Node.js 22+. Run `node --version` to verify. Use `nvm install 22 && nvm use 22` if needed.
-3. **Check the terminal output:** The real error is printed in the terminal where `bun run dev` is running, not in the browser. Look for missing modules or syntax errors.
-4. **Clear the cache:** Run `rm -rf dashboard/.next && bun run dev` to rebuild from scratch.
-
-</details>
-
-<details>
-<summary><strong>401 Unauthorized on the dashboard</strong></summary>
-
-The API requires authentication. After running `make seed`, log in with:
-
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@autopatch.local` | `changeme123` | admin |
-| `operator@autopatch.local` | `changeme123` | operator |
-| `viewer@autopatch.local` | `changeme123` | viewer |
-
-</details>
-
-<details>
-<summary><strong><code>relation "users" does not exist</code> on <code>make seed</code></strong></summary>
-
-Run `make migrate` before `make seed`. The migration creates the database tables that the seed script populates.
-
-```bash
-make migrate && make seed
-```
-
-</details>
-
-### 3. Open the dashboard
+### 4. Open the dashboard
 
 Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 4. Start the LLM server (on the GPU machine)
+### 5. Start the LLM server (on the GPU machine)
 
 ```bash
 pip install vllm
@@ -338,14 +323,13 @@ This starts a local vLLM container using the model specified in your `.env`. Use
 
 Autopatch uses [HashiCorp Vault](https://www.vaultproject.io/) to issue short-lived SSH certificates for the Executor Agent. This avoids distributing static SSH keys and provides a full audit trail of remote commands.
 
-**Initialize Vault:**
+**Initialize Vault (one time):**
 
 ```bash
-make vault        # Start the Vault container
 make vault-init   # Bootstrap AppRole auth and SSH secrets engine
 ```
 
-The init script writes `VAULT_ROLE_ID` and `VAULT_SECRET_ID` to `.env` automatically. Review `deploy/docker/vault/vault-config.hcl` for the Vault configuration.
+The script prints `VAULT_ROLE_ID` and `VAULT_SECRET_ID`. Paste those values into your `.env` and restart the stack. Review `deploy/docker/vault/vault-config.hcl` for the Vault server configuration.
 
 **Target host requirements:**
 
@@ -375,8 +359,7 @@ Autopatch integrates three scanning tools for vulnerability discovery and post-p
 | Scanner | Purpose | Interface |
 |---------|---------|-----------|
 | [OpenVAS / Greenbone](https://www.greenbone.net/) | Network vulnerability scanning | GMP protocol over TCP |
-| [Trivy](https://trivy.dev/) | Container and filesystem scanning | CLI |
-| [Nuclei](https://nuclei.projectdiscovery.io/) | Template-based web/service scanning | CLI |
+| [Nuclei](https://nuclei.projectdiscovery.io/) | Template-based web/service scanning | Docker (projectdiscovery/nuclei) |
 
 **Start the full stack including OpenVAS:**
 
@@ -515,7 +498,7 @@ The executor operates within a security sandbox that enforces command allowlists
 | **Database** | PostgreSQL, Alembic migrations |
 | **Cache & Queue** | Redis (Celery broker + result backend) |
 | **Security** | HashiCorp Vault (SSH certificate signing), JWT, command sandboxing |
-| **Scanning** | OpenVAS / Greenbone, Trivy, Nuclei, InSpec |
+| **Scanning** | OpenVAS / Greenbone, Nuclei, InSpec |
 | **Infrastructure** | Terraform, Proxmox, Ansible, Docker Compose |
 | **Storage** | MinIO (S3-compatible object storage) |
 | **CVE Intelligence** | NVD API, EPSS, CISA KEV catalog |
