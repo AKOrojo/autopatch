@@ -8,4 +8,4 @@ COPY dashboard/ .
 
 EXPOSE 3000
 
-CMD ["bun", "run", "dev"]
+CMD ["bun", "run", "dev", "--hostname", "0.0.0.0"]

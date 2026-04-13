@@ -1,13 +1,13 @@
 .PHONY: up down up-full down-full migrate migrate-test seed test test-unit test-live test-live-llm test-live-terraform lint format api dashboard logs worker worker-agents beat enrich-epss enrich-kev enrich-nvd enrich-all vllm vllm-remote vllm-logs vault vault-init vault-logs vault-status
 
 up:
-	docker compose up -d --scale vllm=0
+	docker compose up -d
 
 down:
 	docker compose down
 
 up-full:
-	docker compose -f docker-compose.yml -f docker-compose.greenbone.yml up -d --scale vllm=0
+	docker compose -f docker-compose.yml -f docker-compose.greenbone.yml up -d
 
 down-full:
 	docker compose -f docker-compose.yml -f docker-compose.greenbone.yml down
@@ -74,7 +74,7 @@ enrich-all:
 	uv run python scripts/import_epss.py && uv run python scripts/import_kev.py && uv run python scripts/import_cve_feed.py
 
 vllm:
-	docker compose up -d vllm
+	docker compose --profile gpu up -d vllm
 
 vllm-remote:
 	ssh resbears@10.100.201.26 "docker start vllm 2>/dev/null || docker run -d --name vllm --gpus all --shm-size 16g -p 8001:8000 -v ~/.cache/huggingface:/root/.cache/huggingface vllm/vllm-openai:latest --model Qwen/Qwen3-30B-A3B --tensor-parallel-size 2 --max-model-len 8192"

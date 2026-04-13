@@ -1,11 +1,10 @@
 # src/agents/verification_agent.py
 """Verification agent — multi-scanner post-remediation validation.
 
-Runs 4 checks in sequence with fail-fast:
+Runs 3 checks in sequence with fail-fast:
   1. Service smoke test (SSH + ss -tlnp)
   2. Nuclei targeted re-scan
-  3. Trivy filesystem scan
-  4. OpenVAS full re-scan
+  3. OpenVAS full re-scan
 """
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ from typing import Any
 
 from src.agents.state import AutopatchState
 from src.agents.tools.nuclei_tool import run_nuclei_scan
-from src.agents.tools.trivy_tool import run_trivy_scan
 from src.agents.tools.openvas_tool import run_openvas_scan
 from src.agents.tools.ssh_tool import ssh_execute
 from src.api.services.vault_service import build_vault_client_from_settings
@@ -60,20 +58,6 @@ async def _check_nuclei(host: str, scan_data: dict) -> dict:
     }
 
 
-async def _check_trivy(host: str, target_cve: str | None) -> dict:
-    result = await run_trivy_scan(host, severity="CRITICAL,HIGH")
-    cve_resolved = target_cve not in result.cve_ids if target_cve else True
-    new_critical = [v.get("VulnerabilityID", "") for v in result.vulnerabilities if v.get("Severity") == "CRITICAL"]
-    new_high = [v.get("VulnerabilityID", "") for v in result.vulnerabilities if v.get("Severity") == "HIGH"]
-    return {
-        "passed": cve_resolved,
-        "cve_resolved": cve_resolved,
-        "new_critical_vulns": new_critical[:20],
-        "new_high_vulns": new_high[:20],
-        "regression": False,
-    }
-
-
 async def _check_openvas(host: str, target_cve: str | None) -> dict:
     result = await run_openvas_scan(host)
     target_resolved = True
@@ -102,7 +86,6 @@ async def verification_node(state: AutopatchState) -> dict[str, Any]:
     results: dict[str, Any] = {
         "smoke_test": None,
         "nuclei_rescan": None,
-        "trivy_rescan": None,
         "openvas_rescan": None,
         "overall": "pass",
         "failure_reason": None,
@@ -131,15 +114,6 @@ async def verification_node(state: AutopatchState) -> dict[str, Any]:
                 results["failure_reason"] = f"Nuclei still detects vulnerability (template: {nuclei['template_id']})"
                 return {"verification_results": results, "status": "verification_failed"}
 
-            logger.info("Verification: running Trivy scan on %s", host)
-            trivy = await _check_trivy(host, cve_id)
-            results["trivy_rescan"] = trivy
-
-            if not trivy["passed"]:
-                results["overall"] = "fail"
-                results["failure_reason"] = f"Trivy still detects {cve_id}"
-                return {"verification_results": results, "status": "verification_failed"}
-
             logger.info("Verification: running OpenVAS scan on %s", host)
             openvas = await _check_openvas(host, cve_id)
             results["openvas_rescan"] = openvas
@@ -155,5 +129,5 @@ async def verification_node(state: AutopatchState) -> dict[str, Any]:
         results["failure_reason"] = str(exc)
         return {"verification_results": results, "status": "verification_crash"}
 
-    results["summary"] = "All 4 verification checks passed"
+    results["summary"] = "All 3 verification checks passed"
     return {"verification_results": results, "status": "verified"}

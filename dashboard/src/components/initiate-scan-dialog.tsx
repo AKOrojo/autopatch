@@ -7,7 +7,6 @@ import { Scan, X, Check } from "lucide-react";
 
 const SCANNER_TYPES = [
   { value: "openvas", label: "OpenVAS", desc: "Network vulnerability scanner" },
-  { value: "trivy", label: "Trivy", desc: "Container & OS package scanner" },
   { value: "nuclei", label: "Nuclei", desc: "Web vulnerability scanner" },
 ];
 

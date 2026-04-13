@@ -67,27 +67,3 @@ def parse_nuclei_results(jsonl_content: str) -> list[dict]:
             "affected_version": None, "fixed_version": None,
         })
     return results
-
-def parse_trivy_results(json_content: str) -> list[dict]:
-    data = json.loads(json_content)
-    results = []
-    for target_result in data.get("Results", []):
-        for vuln in target_result.get("Vulnerabilities", []):
-            severity = _severity_normalize(vuln.get("Severity", ""))
-            cvss_score = None
-            for source in vuln.get("CVSS", {}).values():
-                if "V3Score" in source:
-                    cvss_score = float(source["V3Score"])
-                    break
-            cve_id = vuln.get("VulnerabilityID", "")
-            cwe_ids = vuln.get("CweIDs", []) or []
-            results.append({
-                "title": vuln.get("Title", ""), "description": vuln.get("Description", ""),
-                "severity": severity, "cvss_score": cvss_score,
-                "cve_ids": [cve_id] if cve_id.startswith("CVE-") else [],
-                "cwe_id": cwe_ids[0] if cwe_ids else None, "port": "",
-                "affected_package": vuln.get("PkgName"),
-                "affected_version": vuln.get("InstalledVersion"),
-                "fixed_version": vuln.get("FixedVersion"),
-            })
-    return results

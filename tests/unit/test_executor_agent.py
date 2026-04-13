@@ -13,7 +13,7 @@ def _state_with_plan(**overrides):
         vulnerability_id="vuln-001",
         asset_id="asset-001",
         cve_id="CVE-2024-1234",
-        scan_data={"scanner": "trivy"},
+        scan_data={"scanner": "nuclei"},
     )
     state["remediation_plan"] = {
         "target_host": "10.0.0.5",

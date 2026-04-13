@@ -9,10 +9,6 @@ def test_get_nuclei_backend():
     backend = get_scanner_backend("nuclei")
     assert isinstance(backend, ScannerBackend)
 
-def test_get_trivy_backend():
-    backend = get_scanner_backend("trivy")
-    assert isinstance(backend, ScannerBackend)
-
 def test_get_unknown_backend():
     with pytest.raises(ValueError, match="Unknown scanner"):
         get_scanner_backend("nessus")

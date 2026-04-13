@@ -4,7 +4,7 @@
 Run with: pytest tests/e2e/test_metasploitable2.py -m e2e -v -s --timeout=2700
 
 Tests:
-1. Multi-scanner scan (Nuclei + Trivy + optional OpenVAS) → correlate findings
+1. Multi-scanner scan (Nuclei + optional OpenVAS) → correlate findings
 2. Remediate SSH root login → verify fix with re-scan
 3. Out-of-scope: low-severity finding correctly filtered by evaluator
 """
@@ -27,7 +27,7 @@ def _run_openvas() -> bool:
 # Helpers: scanner correlation
 # ---------------------------------------------------------------------------
 
-def _correlate_findings(nuclei_findings, trivy_vulns, openvas_findings=None):
+def _correlate_findings(nuclei_findings, openvas_findings=None):
     """Correlate scanner findings by CVE ID.
 
     Returns a list of merged vulnerability records. Each record has:
@@ -69,25 +69,6 @@ def _correlate_findings(nuclei_findings, trivy_vulns, openvas_findings=None):
                 "scanners": ["nuclei"], "scanner_details": {"nuclei": f},
                 "nuclei_template_id": template_id,
             })
-
-    # Trivy vulnerabilities
-    for v in trivy_vulns:
-        cve = v.get("VulnerabilityID", "")
-        severity = v.get("Severity", "MEDIUM").lower()
-        title = v.get("Title", v.get("VulnerabilityID", "Unknown"))
-
-        if cve:
-            if cve not in by_cve:
-                by_cve[cve] = {
-                    "cve_id": cve, "title": title, "severity": severity,
-                    "scanners": [], "scanner_details": {},
-                    "nuclei_template_id": "",
-                }
-            rec = by_cve[cve]
-            rec["scanners"].append("trivy")
-            rec["scanner_details"]["trivy"] = v
-            if severity_rank.get(severity, 0) > severity_rank.get(rec["severity"], 0):
-                rec["severity"] = severity
 
     # OpenVAS findings (optional)
     if openvas_findings:
@@ -131,15 +112,10 @@ def _correlate_findings(nuclei_findings, trivy_vulns, openvas_findings=None):
 
 @pytest.fixture(scope="session")
 async def scan_results(clone_ip):
-    """Run Nuclei + Trivy (+ optional OpenVAS) against the clone."""
+    """Run Nuclei (+ optional OpenVAS) against the clone."""
     from src.agents.tools.nuclei_tool import run_nuclei_scan
-    from src.agents.tools.trivy_tool import run_trivy_scan
 
     nuclei = await run_nuclei_scan(clone_ip, severity="critical,high,medium")
-
-    # Trivy fs scan requires local filesystem — for remote targets it may fail.
-    # We still run it for correlation; if it fails, we continue with Nuclei + OpenVAS.
-    trivy = await run_trivy_scan(clone_ip, severity="CRITICAL,HIGH,MEDIUM")
 
     openvas = None
     if _run_openvas():
@@ -149,7 +125,6 @@ async def scan_results(clone_ip):
 
     return {
         "nuclei": nuclei,
-        "trivy": trivy,
         "openvas_findings": openvas,
     }
 
@@ -159,7 +134,6 @@ def correlated_vulns(scan_results):
     """Correlate findings across scanners by CVE ID."""
     return _correlate_findings(
         scan_results["nuclei"].findings,
-        scan_results["trivy"].vulnerabilities,
         scan_results.get("openvas_findings"),
     )
 
@@ -173,13 +147,11 @@ def correlated_vulns(scan_results):
 async def test_multi_scanner_correlation(clone_ip, scan_results, correlated_vulns):
     """Run all scanners, correlate by CVE, report merged findings."""
     nuclei = scan_results["nuclei"]
-    trivy = scan_results["trivy"]
 
     print(f"\n{'='*60}")
     print(f"SCAN RESULTS for {clone_ip}")
     print(f"{'='*60}")
     print(f"Nuclei: {len(nuclei.findings)} findings (exit={nuclei.exit_code})")
-    print(f"Trivy:  {len(trivy.vulnerabilities)} vulnerabilities (exit={trivy.exit_code})")
     if scan_results.get("openvas_findings") is not None:
         print(f"OpenVAS: {len(scan_results['openvas_findings'])} findings")
     else:

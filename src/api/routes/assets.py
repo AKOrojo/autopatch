@@ -78,7 +78,6 @@ async def delete_asset(
         raise NotFoundError(detail=f"Asset {asset_id} not found")
     hostname = asset.hostname
     ip_address = str(asset.ip_address)
-    await db.delete(asset)
     await write_audit_log(
         session=db,
         event_type="asset_deregistered",
@@ -86,6 +85,7 @@ async def delete_asset(
         asset_id=str(asset_id),
         user_id=auth.get("sub"),
     )
+    await db.delete(asset)
     await db.commit()
 
 

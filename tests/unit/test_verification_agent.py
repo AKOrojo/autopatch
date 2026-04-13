@@ -28,12 +28,10 @@ class TestVerificationSmoke:
     async def test_smoke_pass_when_services_match(self):
         with patch("src.agents.verification_agent.ssh_execute") as mock_ssh, \
              patch("src.agents.verification_agent.run_nuclei_scan") as mock_nuclei, \
-             patch("src.agents.verification_agent.run_trivy_scan") as mock_trivy, \
              patch("src.agents.verification_agent.run_openvas_scan") as mock_openvas:
 
             mock_ssh.return_value = MagicMock(ok=True, stdout="LISTEN 0.0.0.0:22\nLISTEN 0.0.0.0:80\n", exit_code=0)
             mock_nuclei.return_value = MagicMock(findings=[], exit_code=0, has_findings=False)
-            mock_trivy.return_value = MagicMock(vulnerabilities=[], cve_ids=set(), exit_code=0)
             mock_openvas.return_value = MagicMock(findings=[], exit_code=0, finding_count=0)
 
             with patch("src.agents.verification_agent.build_vault_client_from_settings") as mock_vault:

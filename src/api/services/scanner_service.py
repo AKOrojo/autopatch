@@ -14,11 +14,9 @@ class ScannerBackend(Protocol):
 def get_scanner_backend(scanner_type: str) -> ScannerBackend:
     from src.api.services.scanners.openvas import OpenVASBackend
     from src.api.services.scanners.nuclei import NucleiBackend
-    from src.api.services.scanners.trivy import TrivyBackend
     backends = {
         "openvas": OpenVASBackend,
         "nuclei": NucleiBackend,
-        "trivy": TrivyBackend,
     }
     cls = backends.get(scanner_type)
     if cls is None:
