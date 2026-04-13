@@ -45,6 +45,21 @@ class OpenVASBackend:
         gmp_status = status_el.text or ""
         return _STATUS_MAP.get(gmp_status, "unknown")
 
+    def _extract_progress(self, xml_response: str) -> int:
+        """Parse task XML and return progress percentage (0-100)."""
+        root = ET.fromstring(xml_response)
+        progress_el = root.find(".//task/progress")
+        if progress_el is None:
+            return 0
+        try:
+            return max(0, min(100, int(progress_el.text or "0")))
+        except ValueError:
+            return 0
+
+    def _extract_status_and_progress(self, xml_response: str) -> tuple[str, int]:
+        """Return (status, progress) from a single task XML response."""
+        return self._extract_status(xml_response), self._extract_progress(xml_response)
+
     async def start_scan(self, target: str, config: dict) -> str:
         with self._gmp_session() as gmp:
             target_resp = gmp.create_target(
@@ -71,6 +86,12 @@ class OpenVASBackend:
         with self._gmp_session() as gmp:
             task_resp = gmp.get_task(scanner_task_id)
             return self._extract_status(task_resp)
+
+    async def get_scan_status_and_progress(self, scanner_task_id: str) -> tuple[str, int]:
+        """Single GMP call returning (status, progress_pct)."""
+        with self._gmp_session() as gmp:
+            task_resp = gmp.get_task(scanner_task_id)
+            return self._extract_status_and_progress(task_resp)
 
     async def get_results(self, scanner_task_id: str) -> list[dict]:
         with self._gmp_session() as gmp:

@@ -108,6 +108,26 @@ export async function createAsset(data: AssetCreate): Promise<Asset> {
   return res.json();
 }
 
+export interface AssetUpdate {
+  hostname?: string;
+  ip_address?: string;
+  os_family?: string;
+  os_version?: string;
+  environment?: string;
+  criticality?: string;
+  tags?: Record<string, unknown>;
+  ssh_port?: number;
+}
+
+export async function updateAsset(id: string, data: AssetUpdate): Promise<Asset> {
+  const res = await apiFetch(`/api/v1/assets/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+  await apiFetch(`/api/v1/assets/${id}`, { method: "DELETE" });
+}
+
 export function getAsset(id: string) {
   return apiFetch(`/api/v1/assets/${id}`).then(r => r.json()) as Promise<Asset>;
 }
@@ -122,6 +142,7 @@ export interface Scan {
   started_at: string | null;
   completed_at: string | null;
   vuln_count: number;
+  progress: number;
   created_at: string;
 }
 
@@ -161,6 +182,7 @@ export interface ScanReportDetail extends ScanReport {
     scanner_type: string;
     status: string;
     vuln_count: number;
+    progress: number;
     started_at: string | null;
     completed_at: string | null;
   }[];

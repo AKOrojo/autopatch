@@ -161,7 +161,16 @@ async def _run_scan_async(scan_id: str) -> None:
     _update_scan(scan_id, status="running", started_at=datetime.now(timezone.utc))
 
     try:
-        scanner_task_id = await backend.start_scan(scan["asset_ip"], scan["config"])
+        if scanner_type == "nuclei":
+            def _on_nuclei_progress(pct: int) -> None:
+                _update_scan(scan_id, progress=pct)
+
+            scanner_task_id = await backend.start_scan(
+                scan["asset_ip"], scan["config"], progress_callback=_on_nuclei_progress
+            )
+        else:
+            scanner_task_id = await backend.start_scan(scan["asset_ip"], scan["config"])
+
         _update_scan(scan_id, scanner_task_id=scanner_task_id)
 
         if scanner_type == "openvas":
@@ -171,7 +180,7 @@ async def _run_scan_async(scan_id: str) -> None:
             )
             await backend.configure_alert(scanner_task_id, webhook_url)
         else:
-            # nuclei / trivy report results synchronously — ingest immediately
+            # nuclei reports results synchronously — ingest immediately
             await _ingest_results_async(scan_id)
 
     except Exception:
@@ -225,9 +234,12 @@ async def _poll_openvas_async() -> None:
     for scan in rows:
         scan_id = str(scan.id)
         try:
-            status = await backend.get_scan_status(scan.scanner_task_id)
+            status, progress = await backend.get_scan_status_and_progress(scan.scanner_task_id)
+            _update_scan(scan_id, progress=progress)
             if status == "completed":
                 await _ingest_results_async(scan_id)
+            elif status == "failed":
+                _update_scan(scan_id, status="failed")
         except Exception:
             logger.exception("poll_openvas failed for scan %s", scan_id)
 

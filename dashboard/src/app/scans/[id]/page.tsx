@@ -149,31 +149,52 @@ export default function ReportDetailPage({
 
       {/* Scan progress cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        {report.scans.map((scan) => (
-          <div key={scan.id} className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-sm">{scan.scanner_type}</span>
-              <StatusBadge status={scan.status} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {scan.status === "running" && scan.started_at
-                ? `Started ${new Date(scan.started_at).toLocaleString()}`
-                : scan.status === "pending"
-                  ? "Waiting to start..."
-                  : `${scan.vuln_count} vulnerabilities`}
-              {scan.completed_at && scan.status === "completed"
-                ? ` · Completed ${new Date(scan.completed_at).toLocaleString()}`
-                : ""}
-            </p>
-            {(scan.status === "running" || scan.status === "pending") && (
-              <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${scan.status === "running" ? "bg-blue-500 animate-pulse w-2/3" : "bg-muted-foreground/30 w-0"}`}
-                />
+        {report.scans.map((scan) => {
+          const pct = scan.progress ?? 0;
+          const eta = (() => {
+            if (scan.status !== "running" || !scan.started_at || pct <= 0) return null;
+            const elapsed = (Date.now() - new Date(scan.started_at).getTime()) / 1000;
+            const remaining = elapsed / (pct / 100) - elapsed;
+            if (remaining < 60) return `~${Math.round(remaining)}s remaining`;
+            return `~${Math.round(remaining / 60)}m remaining`;
+          })();
+          return (
+            <div key={scan.id} className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-medium text-sm">{scan.scanner_type}</span>
+                <StatusBadge status={scan.status} />
               </div>
-            )}
-          </div>
-        ))}
+              <p className="text-xs text-muted-foreground">
+                {scan.status === "running" && scan.started_at
+                  ? `Started ${new Date(scan.started_at).toLocaleString()}`
+                  : scan.status === "pending"
+                    ? "Waiting to start..."
+                    : `${scan.vuln_count} vulnerabilities`}
+                {scan.completed_at && scan.status === "completed"
+                  ? ` · Completed ${new Date(scan.completed_at).toLocaleString()}`
+                  : ""}
+              </p>
+              {(scan.status === "running" || scan.status === "pending") && (
+                <>
+                  <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                      style={{ width: scan.status === "pending" ? "0%" : `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-muted-foreground">
+                      {scan.status === "running" ? `${pct}%` : ""}
+                    </span>
+                    {eta && (
+                      <span className="text-xs text-muted-foreground">{eta}</span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {error && (

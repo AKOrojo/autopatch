@@ -21,4 +21,5 @@ class ScanResponse(BaseModel):
     completed_at: datetime | None
     raw_report_path: str | None
     vuln_count: int
+    progress: int
     created_at: datetime
