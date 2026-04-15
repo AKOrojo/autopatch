@@ -118,7 +118,7 @@ services:
         condition: service_healthy
 
   gsa:
-    image: registry.community.greenbone.net/community/gsa:stable-slim
+    image: registry.community.greenbone.net/community/gsa:stable
     environment:
       MOUNT_PATH: "/mnt/web"
       KEEP_ALIVE: 1
